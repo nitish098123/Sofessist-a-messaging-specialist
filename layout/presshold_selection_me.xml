@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/presshold_tool_bar_me_id"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_alignParentTop="true"
+        android:background="@color/purple_200">
+
+          <LinearLayout
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content">
+
+              <TextView
+                  android:id="@+id/number_of_msg_select_id"
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:text="2"
+                  android:textColor="@color/white"
+                  android:textStyle="bold"
+                  android:textSize="25dp"/>
+              <Space
+                  android:layout_width="0dp"
+                  android:layout_height="1dp"
+                  android:layout_weight="1">
+              </Space>
+
+              <ImageView
+                  android:id="@+id/delete_id_msg"
+                  android:layout_width="28dp"
+                  android:layout_height="28dp"
+                  android:src="@drawable/delete" />
+              <Space
+                  android:layout_width="0dp"
+                  android:layout_height="1dp"
+                  android:layout_weight="1">
+              </Space>
+
+              <ImageView
+                  android:id="@+id/move_to_folder_id"
+                  android:layout_width="28dp"
+                  android:layout_height="28dp"
+                  android:src="@drawable/star_msg"/>
+
+              <Space
+                  android:layout_width="0dp"
+                  android:layout_height="1dp"
+                  android:layout_weight="1">
+              </Space>
+
+              <ImageView
+                  android:layout_width="30sp"
+                  android:layout_height="30sp"
+                  android:src="@drawable/block_share"/>
+              <Space
+                  android:layout_width="0dp"
+                  android:layout_height="1dp"
+                  android:layout_weight="1">
+              </Space>
+
+              <ImageView
+                  android:id="@+id/share_forward"
+                  android:layout_width="30dp"
+                  android:layout_height="27dp"
+                  android:src="@drawable/share_forward"/>
+
+              <Space
+                  android:layout_width="0dp"
+                  android:layout_height="1dp"
+                  android:layout_weight="1">
+              </Space>
+
+              <ImageView
+                  android:id="@+id/copy_chat_id"
+                  android:layout_width="29dp"
+                  android:layout_height="29dp"
+                  android:src="@drawable/copy"/>
+              <Space
+                  android:layout_width="0dp"
+                  android:layout_height="1dp"
+                  android:layout_weight="1">
+              </Space>
+
+                <ImageView
+                    android:id="@+id/remainder_chat_id"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:src="@drawable/remainder_chat"/>
+
+          </LinearLayout>
+
+    </androidx.appcompat.widget.Toolbar>
+
+</RelativeLayout>

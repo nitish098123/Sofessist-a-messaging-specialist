@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/rectangle_white"
+    android:layout_height="match_parent">
+
+    <ImageView
+        android:layout_width="62dp"
+        android:layout_height="4dp"
+        android:layout_marginTop="6dp"
+        android:layout_centerHorizontal="true"
+        android:background="@color/gray"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Choose to send"
+        android:layout_marginTop="15dp"
+        android:textSize="20sp"
+        android:textColor="@color/teal_700"
+        android:textStyle="bold"/>
+
+<!--    for showing photos-->
+    <RelativeLayout
+        android:id="@+id/choose_photo_linear_layout"
+        android:layout_width="match_parent"
+        android:orientation="horizontal"
+        android:layout_marginTop="50dp"
+        android:layout_height="60dp">
+
+   <ImageView
+       android:layout_width="45dp"
+       android:layout_height="45dp"
+       android:layout_marginStart="10dp"
+       android:layout_alignParentTop="true"
+       android:layout_marginTop="12dp"
+       android:src="@drawable/photo_galary"/>
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Choose Photos"
+        android:textColor="@color/black"
+        android:textStyle="normal"
+        android:layout_marginStart="72dp"
+        android:layout_marginTop="16dp"/>
+    </RelativeLayout>
+
+<!--    showing vedios-->
+
+ <RelativeLayout
+     android:id="@+id/choose_videos_layout_id"
+     android:layout_width="match_parent"
+     android:layout_below="@id/choose_photo_linear_layout"
+     android:layout_height="60dp">
+
+  <ImageView
+      android:layout_width="45dp"
+      android:layout_height="45dp"
+      android:layout_marginStart="10dp"
+      android:layout_alignParentTop="true"
+      android:layout_marginTop="12dp"
+      android:src="@drawable/vedio_library"/>
+
+  <TextView
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_marginStart="72dp"
+      android:text="Choose Videos"
+      android:layout_marginTop="16dp"
+      android:textColor="@color/black"
+      android:textStyle="normal" />
+
+ </RelativeLayout>
+
+<!--    showing files-->
+
+    <RelativeLayout
+        android:id="@+id/choose_files_linear_id"
+        android:layout_width="match_parent"
+        android:orientation="horizontal"
+        android:layout_below="@id/choose_videos_layout_id"
+        android:layout_height="60dp">
+
+    <ImageView
+        android:layout_width="45dp"
+        android:layout_height="45dp"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="12dp"
+        android:src="@drawable/files_logo"/>
+
+     <TextView
+         android:layout_width="wrap_content"
+         android:layout_height="wrap_content"
+         android:layout_alignParentTop="true"
+         android:layout_marginStart="72dp"
+         android:layout_marginTop="16dp"
+         android:text="Choose Files"
+         android:textColor="@color/black"
+         android:textStyle="normal" />
+    </RelativeLayout>
+<!--    showing cotacts-->
+    <RelativeLayout
+        android:id="@+id/Choose_contact_attachment"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:layout_alignParentStart="true"
+        android:layout_below="@id/choose_files_linear_id"
+        android:layout_marginStart="0dp">
+
+        <ImageView
+            android:layout_width="45dp"
+            android:layout_height="45dp"
+            android:layout_marginStart="10dp"
+            android:layout_marginTop="12dp"
+            android:src="@drawable/contacts" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="72dp"
+            android:text="Choose Contacts"
+            android:layout_marginTop="16dp"
+            android:textColor="@color/black"
+            android:textStyle="normal" />
+    </RelativeLayout>
+
+</RelativeLayout>

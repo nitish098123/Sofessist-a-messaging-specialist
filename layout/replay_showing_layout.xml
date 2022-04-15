@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_alignParentRight="true">
+
+
+    <RelativeLayout
+        android:id="@+id/replay_show_msg"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true"
+        android:layout_marginEnd="8dp"
+        android:background="@color/gray">
+
+        <TextView
+            android:id="@+id/sender_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="4dp"
+            android:text="adadskdjsadj"
+            android:textColor="@color/blue"
+            android:textSize="15dp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/replay_of_msg"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/sender_name"
+            android:layout_marginStart="12dp"
+            android:textColor="@color/black"
+            android:maxWidth="310dp"
+            android:textSize="15dp"
+            android:textStyle="normal" />
+    </RelativeLayout>
+
+    <TextView
+        android:id="@+id/replied_msg"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:background="@drawable/textview_right"
+        android:paddingRight="25dp"
+        android:text="Thisssassddsfssdasdasdsadadasdasdsfsdfdsfdfg "
+        android:maxWidth="310dp"
+        android:layout_below="@id/replay_show_msg"
+        android:textColor="@color/white"
+        android:paddingTop="10dp"
+        android:textSize="16dp"
+        />
+
+</RelativeLayout>

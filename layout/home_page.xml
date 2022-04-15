@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    android:orientation="vertical">
+
+    <RelativeLayout
+        android:id="@+id/layout_of_person"
+        android:layout_width="match_parent"
+        android:layout_height="69dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="7dp"
+            android:gravity="center_vertical"
+            android:layout_marginStart="72dp"
+            android:text="Name:"
+            android:textColor="@color/black"
+            android:maxLines="1"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1">
+        </Space>
+
+        <TextView
+            android:id="@+id/_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true"
+            android:layout_marginTop="7dp"
+            android:layout_marginEnd="20dp"
+            android:layout_marginRight="20dp"
+            android:gravity="right"
+            android:text="3:00pm"
+            android:textColor="@color/black"
+            android:textSize="11dp"
+            android:textStyle="italic" />
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1">
+        </Space>
+
+        <ImageView
+            android:id="@+id/dp_view"
+            android:layout_width="55dp"
+            android:layout_height="55dp"
+            android:src="@drawable/display_picture"
+            android:layout_marginLeft="10dp"
+            android:layout_marginTop="4.5dp" />
+
+        <TextView
+            android:id="@+id/number"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="76dp"
+            android:layout_marginTop="34dp"
+            android:text="message: You have joined to Sender!"
+            android:textColor="@color/black"
+            android:textSize="12sp"
+            android:textStyle="normal"
+            />
+
+    </RelativeLayout>
+
+</LinearLayout>

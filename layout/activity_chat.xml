@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".message_holder.chat_activity">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/tool_bar_chat_screen"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true"
+        android:background="@color/title_bar_dark">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+           <ImageView
+               android:id="@+id/pair_profile_picture"
+               android:layout_width="46dp"
+               android:layout_height="46dp"
+               android:src="@drawable/white_display_picture"/>
+
+           <TextView
+                android:id="@+id/pair_message_person_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:paddingLeft="0dp"
+                android:layout_alignLeft="@id/pair_profile_picture"
+                android:text="Name"
+                android:layout_marginLeft="50dp"
+                android:textColor="@color/white"
+                android:maxLines="1"
+                android:textSize="17dp"
+                android:textStyle="bold" />
+
+           <TextView
+                android:id="@+id/online_status_person"
+                android:layout_width="wrap_content"
+                android:layout_marginTop="24dp"
+                android:layout_height="wrap_content"
+                android:text="offline"
+                android:textColor="@color/white"
+                android:textStyle="normal"
+                android:layout_marginStart="50dp"
+                android:textSize="13dp" />
+
+           <ImageView
+            android:id="@+id/dot_3_option_chat_screen"
+            android:layout_width="30sp"
+            android:layout_alignParentRight="true"
+            android:layout_marginEnd="10dp"
+            android:layout_marginTop="10dp"
+            android:src="@drawable/search_string"
+            android:layout_height="30sp"/>
+
+            <ImageView
+                android:id="@+id/between_media_access"
+                android:layout_width="30sp"
+                android:layout_height="30sp"
+                android:src="@drawable/media_access_chat_screen"
+                android:layout_alignParentRight="true"
+                android:layout_marginTop="7dp"
+                android:layout_marginEnd="48dp"/>
+        </RelativeLayout>
+
+    </androidx.appcompat.widget.Toolbar>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/messageList_recycle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/tool_bar_chat_screen"
+        android:scrollbars="vertical"
+        android:layout_above="@id/linear_layout_id" />
+
+<!--    for replay message shown layout-->
+
+    <RelativeLayout
+        android:id="@+id/reply_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/gray"
+        android:visibility="gone"
+        android:layout_above="@id/linear_layout_id">
+
+          <TextView
+              android:id="@+id/txtQuotedMsg"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:layout_marginStart="10dp"
+              android:padding="8dp"
+              android:textSize="10dp"
+              android:textColor="@color/black"
+              android:layout_toEndOf="@id/cancelButton"/>
+
+        <ImageButton
+            android:id="@+id/cancelButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_alignParentRight="true"
+            android:src="@drawable/cencel_button"
+            android:layout_marginRight="8dp"/>
+
+    </RelativeLayout>
+
+    <LinearLayout
+        android:id="@+id/linear_layout_id"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginStart="0dp"
+        android:layout_marginBottom="2dp"
+        android:background="@color/white"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:id="@+id/select_tamplate_id"
+            android:layout_width="30dp"
+            android:layout_height="47dp"
+            android:src="@drawable/select_tamplate"
+            />
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="2">
+        </Space>
+
+        <EditText
+            android:id="@+id/txtMessage"
+            android:layout_width="240dp"
+            android:layout_height="match_parent"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentBottom="true"
+            android:layout_gravity="bottom"
+
+            android:layout_marginBottom="1dp"
+            android:paddingLeft="16dp"
+            android:paddingTop="9dp"
+            android:background="@drawable/typing_background"
+            android:gravity="left"
+            android:hint="Enter message"
+            android:maxLines="100"
+            android:textSize="18sp"/>
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="2">
+        </Space>
+
+        <ImageView
+            android:id="@+id/options_file_choose_id"
+            android:layout_width="29dp"
+            android:layout_height="47dp"
+            android:layout_alignParentBottom="true"
+            android:layout_marginBottom="4dp"
+            android:rotation="-50"
+            android:src="@drawable/attachment" />
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="2">
+        </Space>
+
+        <ImageView
+            android:id="@+id/timer_chat_icon_id"
+            android:layout_width="29dp"
+            android:layout_height="47dp"
+            android:src="@drawable/timer" />
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="2">
+        </Space>
+
+        <Button
+            android:id="@+id/btnsend"
+            android:layout_width="38dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:background="@drawable/sending_arrow" />
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="2">
+        </Space>
+
+    </LinearLayout>
+</RelativeLayout>

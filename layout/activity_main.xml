@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context=".groups.group_creation">
+
+<!--    <com.google.android.material.textfield.TextInputLayout-->
+<!--        android:id="@+id/input_contacts_id"-->
+<!--        android:layout_width="0dp"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox.ExposedDropdownMenu"-->
+<!--        android:layout_marginStart="12dp"-->
+<!--        android:layout_marginEnd="20dp"-->
+<!--        android:hint="Enter names"-->
+<!--        app:layout_constraintLeft_toLeftOf="parent"-->
+<!--        app:layout_constraintRight_toRightOf="parent"-->
+<!--        app:layout_constraintTop_toTopOf="parent"-->
+<!--        android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar">-->
+
+<!--        <androidx.appcompat.widget.AppCompatAutoCompleteTextView-->
+<!--            android:id="@+id/enter_contacts_name"-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:imeOptions="actionDone"-->
+<!--            android:textSize="16dp"/>-->
+<!--    </com.google.android.material.textfield.TextInputLayout>-->
+
+    <com.google.android.material.chip.ChipGroup
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:id="@+id/chips_id"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        android:layout_marginTop="32dp"
+        android:layout_marginStart="32dp"
+        android:layout_marginEnd="8dp"
+        app:singleLine="true"
+        android:theme="@style/AppTheme"
+        app:singleSelection="true"/>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+     <TextView
+         android:layout_width="wrap_content"
+         android:layout_height="wrap_content"
+         android:textSize="22dp"
+         android:layout_centerHorizontal="true"
+         android:text="Message Info"
+         android:layout_marginTop="10dp"
+         android:textColor="@color/title_bar_dark"
+         android:textStyle="bold" />
+
+     <TextView
+          android:id="@+id/show_detail_text"
+         android:layout_width="wrap_content"
+         android:layout_height="wrap_content"
+         android:layout_alignParentRight="true"
+          android:layout_marginTop="42dp"
+          android:textColor="@color/black"/>
+     <TextView
+         android:id="@+id/delivered_time"
+         android:layout_width="wrap_content"
+         android:layout_height="wrap_content"
+         android:layout_alignParentLeft="true"
+         android:text="Delivered time :"
+         android:layout_below="@id/show_detail_text"
+         android:textSize="15dp"
+         android:textColor="@color/black"/>
+     <TextView
+         android:id="@+id/seen_time_id"
+         android:layout_width="wrap_content"
+         android:layout_height="wrap_content"
+         android:layout_alignParentLeft="true"
+         android:layout_marginLeft="176dp"
+         android:text="Seen time :"
+         android:textSize="15dp"
+         android:layout_below="@id/show_detail_text"
+         android:textColor="@color/black"/>
+
+     <ImageView
+         android:layout_width="wrap_content"
+         android:layout_height="22dp"
+         android:layout_below="@id/seen_time_id"/>
+
+</RelativeLayout>

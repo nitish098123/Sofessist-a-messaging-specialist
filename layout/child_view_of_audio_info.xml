@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="65dp"
+    android:layout_height="69dp"
+    android:background="@color/gray">
+
+    <TextView
+        android:id="@+id/audio_file_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="edsdfsdf"
+        android:textColor="@color/black"
+        android:textSize="11dp"/>
+
+    <ImageView
+        android:layout_width="56sp"
+        android:layout_height="50sp"
+        android:layout_marginTop="18dp"
+        android:layout_marginStart="4dp"
+        android:src="@drawable/audio_voice"/>
+
+</FrameLayout>

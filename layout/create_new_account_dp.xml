@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <androidx.appcompat.widget.Toolbar
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/title_bar_dark">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Set Your account"
+                android:textColor="@color/white"
+                android:layout_centerHorizontal="true"
+                android:textSize="20sp"/>
+        </RelativeLayout>
+    </androidx.appcompat.widget.Toolbar>
+
+    <ImageView
+        android:id="@+id/add_new_dp"
+        android:layout_width="120dp"
+        android:layout_height="120dp"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="61dp"
+        android:src="@drawable/dp_title_color"/>
+
+    <!--    for name sections-->
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/add_new_dp"
+        android:id="@+id/name_layout">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="15dp"
+            android:text="username"
+            android:layout_marginStart="90dp"/>
+
+        <EditText
+            android:id="@+id/my_name_id"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/black"
+            android:textSize="20dp"
+            android:hint="Enter name"
+            android:layout_marginTop="26dp"
+            android:layout_marginStart="90dp" />
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="76dp"
+            android:layout_weight="1">
+        </Space>
+    </RelativeLayout>
+
+
+
+    <!--    for about sections-->
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/name_layout"
+        android:id="@+id/about_section">
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="76dp"
+            android:layout_weight="1">
+        </Space>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="About"
+            android:textSize="13dp"
+            android:layout_marginStart="90dp"/>
+
+        <EditText
+            android:id="@+id/new_about"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:hint="Enter about"
+            android:textColor="@color/black"
+            android:textSize="20dp"
+            android:layout_marginStart="90dp"
+            android:layout_marginTop="24dp"/>
+
+    </RelativeLayout>
+
+</RelativeLayout>

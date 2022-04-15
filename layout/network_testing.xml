@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+     <Button
+         android:id="@+id/connectBtn"
+         android:layout_width="wrap_content"
+         android:layout_height="wrap_content"
+         android:layout_marginTop="10dp"
+         android:text="connect button"
+         android:textSize="9dp"
+         app:layout_constraintRight_toLeftOf="@id/clientSendBtn"
+         app:layout_constraintTop_toTopOf="parent" />
+
+     <Button
+         android:id="@+id/clientSendBtn"
+         android:layout_width="wrap_content"
+         android:layout_height="wrap_content"
+         android:layout_marginTop="10dp"
+         android:text="send_msg"
+         android:textSize="9dp"
+         android:layout_alignParentRight="true"
+         app:layout_constraintEnd_toEndOf="parent"
+         app:layout_constraintStart_toStartOf="parent"
+         app:layout_constraintTop_toTopOf="parent" />
+
+     <Button
+         android:id="@+id/closeConnectionBtn"
+         android:layout_width="wrap_content"
+         android:layout_height="wrap_content"
+         android:layout_marginTop="10dp"
+         android:text="close"
+         android:textSize="9dp"
+         android:layout_centerHorizontal="true"
+         app:layout_constraintLeft_toRightOf="@id/clientSendBtn"
+         app:layout_constraintTop_toTopOf="parent" />
+
+
+     <TextView
+         android:id="@+id/contentEt"
+         android:layout_width="match_parent"
+         android:layout_height="wrap_content"
+         android:layout_marginTop="60dp"
+         android:enabled="false"
+         android:gravity="top"
+         android:padding="5dp"
+         android:textColor="@color/black"
+         android:textSize="17sp"
+         app:layout_constraintBottom_toBottomOf="parent"
+         app:layout_constraintTop_toBottomOf="@id/clientSendBtn"
+         app:layout_constraintVertical_weight="1" />
+
+     <EditText
+         android:id="@+id/persons_name"
+         android:layout_width="match_parent"
+         android:layout_height="39dp"
+         android:layout_alignParentBottom="true"
+         android:layout_marginBottom="60dp"
+         android:hint="enter person name"/>
+
+
+     <EditText
+         android:id="@+id/enter_message"
+         android:layout_width="match_parent"
+         android:layout_height="39dp"
+          android:layout_alignParentBottom="true"
+          android:layout_marginBottom="12dp"
+          android:hint="enter message"/>
+
+
+</RelativeLayout>
