@@ -12,11 +12,12 @@ import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
+import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.provider.MediaStore
+import android.text.ClipboardManager
 import android.text.InputType
 import android.util.Log
 import android.view.Menu
@@ -30,6 +31,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.view.ActionMode
 import androidx.appcompat.widget.Toolbar
+import androidx.core.net.toUri
 import androidx.recyclerview.selection.SelectionPredicates
 import androidx.recyclerview.selection.SelectionTracker
 import androidx.recyclerview.selection.StableIdKeyProvider
@@ -40,24 +42,30 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.database_part_3.R
 import com.example.database_part_3.alarm.MyAlarm
 import com.example.database_part_3.db.universal_chat_store
-import com.example.database_part_3.model.universal_model
-import com.example.database_part_3.model.universal_model.Me_user
+import com.example.database_part_3.forward.chips_formation
+import com.example.database_part_3.model.*
+import com.example.database_part_3.front_page.recipeList
 import com.example.database_part_3.user_info.ParentRecyclerViewAdapter
 import com.example.database_part_3.user_info.screen_activity
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import kotlinx.android.synthetic.main.activity_chat.*
+import kotlinx.android.synthetic.main.chips_view.*
 import kotlinx.android.synthetic.main.home_page.*
 import kotlinx.android.synthetic.main.image_show.*
+import kotlinx.android.synthetic.main.network_testing.*
 import kotlinx.android.synthetic.main.other_message.*
 import kotlinx.android.synthetic.main.presshold_selection_me.*
+import kotlinx.android.synthetic.main.select_template_option.*
+import java.io.Serializable
 import java.util.*
 import kotlin.collections.ArrayList
 
 const val MY_NUMBER_LONG : Long = 6900529357
 var TOTAL_SELECT_IMAGE = 0
-class chat_activity : AppCompatActivity() , ActionMode.Callback {
+var WALLPAPER_URI = ""
 
+class chat_activity : AppCompatActivity() , ActionMode.Callback {
     var SELECTED_REPLAY_MESSAGE : Int = 0       // this stores the selected message number for replay
     private lateinit var adapter : DataAdapter
     private lateinit var edit_text : EditText
@@ -65,6 +73,7 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
     private var tracker : SelectionTracker<Long>? = null
     private lateinit var _tool : Toolbar
     private var opposite_number : Long = 0
+    private var opposite_person_name = ""
     val context_ : Context = this
     var selectedPostItems :  MutableList<Long> = mutableListOf()
     val selected_store : ArrayList<Long> = ArrayList<Long>()
@@ -73,6 +82,12 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
     private var all_chats_store : ArrayList<universal_model.one_chat_property> = ArrayList<universal_model.one_chat_property>()
     private var PAIR_ = ""
     private lateinit var replay_of_message : TextView
+    private lateinit var template_select : ImageView
+    private var OPPOSITE_PERSON_NUMBER : String = ""
+    private val mapper = jacksonObjectMapper()
+    public val GALLERY_INTENT_CALLED = 1
+    public val GALLERY_KITKAT_INTENT_CALLED = 2
+
     // for the selected items
     var TOTAL_ME = 0
     var TOTAL_OTHERS = 0
@@ -91,11 +106,16 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
 
         val _name : String = intent.getStringExtra("+name").toString()
         val _number : String = intent.getStringExtra("+number").toString()    // this means assured that if it is convertable to Long than only convert it
+        OPPOSITE_PERSON_NUMBER = _number
+
+        template_select = findViewById(R.id.select_tamplate_id)    // template selections id
 
         opposite_number = _number.toLong()
+
         messageList_recycle.layoutManager = LinearLayoutManager(this)
         adapter = DataAdapter(this)
         messageList_recycle.adapter = adapter
+
 
         // Id for replay of message
         replay_of_message = findViewById<TextView>(R.id.txtQuotedMsg)
@@ -140,9 +160,9 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
             StorageStrategy.createLongStorage()).withSelectionPredicate(SelectionPredicates.createSelectAnything()).build()
             adapter.tracker = tracker
 
-      tracker?.addObserver(object : SelectionTracker.SelectionObserver<Long>() {
-              override fun onSelectionChanged() {
-                super.onSelectionChanged()
+    tracker?.addObserver(object : SelectionTracker.SelectionObserver<Long>(){
+            override fun onSelectionChanged(){
+            super.onSelectionChanged()
 
             tracker.let {
             selectedPostItems = it!!.selection.toMutableList()
@@ -171,38 +191,37 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
             var pair: String = ""
 
             if (MY_NUMBER_LONG > _number.toLong()) {
-                message_number = "${MY_NUMBER_LONG}"+"|"+"${_number}"+"|"+"${TOTAL_MESSAGE}"
+                message_number = "$TOTAL_MESSAGE"
                 pair = "${MY_NUMBER_LONG}"+"|"+"${_number}"
             }
             if (MY_NUMBER_LONG < _number.toLong()) {
-                message_number = "${_number}"+"|"+"${MY_NUMBER_LONG}"+"|"+"${TOTAL_MESSAGE}"
+                message_number = "${TOTAL_MESSAGE}"
                 pair = "${_number}"+"|"+"${MY_NUMBER_LONG}"
             }
 
             var _replay_status = ""
             if(SELECTED_REPLAY_MESSAGE==0) _replay_status ="no"
             if(SELECTED_REPLAY_MESSAGE!=0) _replay_status = "${SELECTED_REPLAY_MESSAGE}"
-            store.add(universal_model.one_chat_property(message_number,_message_,"m",true,"no","${_time}",false,false,"none",
+
+            store.add(universal_model.one_chat_property(pair,_name,message_number,_message_,"m",true,"no","${_time}",false,false,"none",
                  "none",false,MY_NUMBER_LONG,_number.toLong(),_replay_status,"none"))
             val handler: Handler = Handler()
             val db = universal_chat_store(this, null)
-
+            recipeList!!.add(universal_model.front_contact_msg(opposite_person_name,_message_,"3:40pm",_number))  // for saving the persons name in the MainActivity List
             val thread : Thread = Thread({
-                val index_of_message : Boolean = db.save_message(pair, message_number, _message_, "m", true, "not", _time_, "none", false, 6900529357, _number,_replay_status,"no",false,edit_msg,"none")
+                val index_of_message : Boolean = db.save_message(pair, message_number, _message_, "m", true, "not", _time_, "none",
+                                                            false, 6900529357, _number,_replay_status,"no",false,edit_msg,"none",_name)
 
-                db.update_user_settings("last_msg_arrived",_message_,_number)      // last_message_arrived for one pair of message
+//                db.update_user_settings("last_msg_arrived",_message_,_number)      // last_message_arrived for one pair of message
 
-                if(TOTAL_MESSAGE==1){     //  this means this person is talking for the first time
-                    db.save_person_info(_name,_number,"","","",false,false,"","","","","","",
-                    false,false,0,"","")    // this is first time to save this user in database
-                }
-
-                handler.post({
-                    if (index_of_message == true) Toast.makeText(this, "data saved!", Toast.LENGTH_SHORT ).show()
-                    if (index_of_message == false) Toast.makeText(this, "Error in saving data!",Toast.LENGTH_SHORT).show()
-                })
+//                if(TOTAL_MESSAGE==1){     //  this means this person is talking for the first time
+//                    db.save_person_info(_name,_number,"","","",false,false,"","","","","","",
+//                    false,false,0,"","")    // this is first time to save this user in database
+//                }
             })
 
+            all_chats_store.add(universal_model.one_chat_property(pair,_name,message_number,_message_,"m",true,"no","${_time}",false,false,"none",
+                "none",false,MY_NUMBER_LONG,_number.toLong(),_replay_status,"none"))
             initiate_process_me(store)   // this store is onbe chat property for the evaluations of dataadapter
             set_clear()
             hideReplayLayout()           // this is to make close of selected to replay layout
@@ -260,18 +279,29 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
          SELECTED_REPLAY_MESSAGE = position
          txtQuotedMsg.setText("${all_chats_store[position].data}")
          showQuotedMessage(all_chats_store[position])
-      }
+     }
      })
      val itemTouchHelper = ItemTouchHelper(message_swipe_controller)
      itemTouchHelper.attachToRecyclerView(messageList_recycle)
 
+     // template selections voter and reactions store
+     template_select.setOnClickListener {
+         selection_template()
+     }
+
+     // for viewing the url of wallpaper
+     Toast.makeText(this,"URI of wallpaper : ${WALLPAPER_URI}",Toast.LENGTH_SHORT).show()
+        if(WALLPAPER_URI!=""){
+            val input_stream = applicationContext.contentResolver.openInputStream(WALLPAPER_URI.toUri()!!)
+            val drawable_ = Drawable.createFromStream(input_stream, WALLPAPER_URI)
+            messageList_recycle.background = drawable_
+        }
 }    // last of onCreate functions
 
 
-    override fun onBackPressed() {
+    override fun onBackPressed(){
         if(selectedPostItems.size!=0)selectedPostItems.clear()          // this will disellect all the selected items
          else super.onBackPressed()
-        Log.d("@@@@@@@@diselection"," occurs!!!")
     }
 
     private fun set_clear(){
@@ -309,7 +339,8 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
     if(checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE)==PackageManager.PERMISSION_DENIED){
          val permission = arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE)
          requestPermissions(permission,PERMISSION_CODE)
-        } else{  choose_image_galary() }
+        }
+       else{  choose_image_galary() }
     }
    else{
        choose_image_galary()
@@ -332,42 +363,91 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
         sheet.show()
     }
 
-    private fun choose_image_galary(){    // this one will pick all the images
+   private fun choose_image_galary(){    // this one will pick all the images
         val intent = Intent(Intent.ACTION_PICK)
         intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true)
         intent.action = Intent.ACTION_GET_CONTENT                   //  this one allow to pick multiple image from gallery
         intent.type = "image/*"
         startActivityForResult(Intent.createChooser(intent,"Select Picture"),IMAGE_CHOOSE)
+
+//        val KITKAT_VALUE = 1002
+//        val intent: Intent
+//        if (Build.VERSION.SDK_INT < 19) {
+//            intent = Intent()
+//            intent.action = Intent.ACTION_GET_CONTENT
+//            intent.type = "image/*"
+//            startActivityForResult(intent, KITKAT_VALUE)
+//        } else {
+//            intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
+//            intent.addCategory(Intent.CATEGORY_OPENABLE)
+//            intent.type = "image/*"
+//            startActivityForResult(intent, KITKAT_VALUE)
+//        }
+
    }
 
     // for selections image and sending image
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data : Intent?) {
+
+        super.onActivityResult(requestCode, resultCode, data)
         if(resultCode ==Activity.RESULT_OK && requestCode==IMAGE_CHOOSE){
             TOTAL_MESSAGE++
-            var message_number: String = "${PAIR_}|${TOTAL_MESSAGE}"
-            Log.d("########total uri is :","${data}")
+            var message_number : String = "${TOTAL_MESSAGE}"
+//            TOTAL_SELECT_IMAGE = total_image                                       // updating the total selected image
+            val send_data: ArrayList<universal_model.one_chat_property> = ArrayList<universal_model.one_chat_property>()
 
-            if(data?.clipData==null){
-                Log.d("%%%%%%%% didnot","selected any media")
+            Log.d("dddddddddata","is :${data}")
+            Log.d("Extracted path is:","${data!!.data}")
+
+            Toast.makeText(this,"Extracted path is data.data:${data.data}",Toast.LENGTH_LONG).show()
+
+            if(data.clipData==null){
                 Toast.makeText(this,"You didnot selected any media",Toast.LENGTH_SHORT).show()
             }
 
-//          if (data?.clipData!!.itemCount!=0)
-            if(data?.clipData!=null){
-            val total_image : Int = data?.clipData!!.itemCount                    // saving the total number of image uri selected
-            TOTAL_SELECT_IMAGE = total_image                                       // updating the total selected image
-            Log.d("#######selected images","${total_image}")
-            var store_uri_string: String = ""                                       // string variable for savign uris to save in sqlite data base
-            val send_data: ArrayList<universal_model.one_chat_property> = ArrayList<universal_model.one_chat_property>()
+            if(data.data!=null){    // this is for selecting single photo from gallery
 
-            for (i in 0 until total_image) {
-//              store_image_uri.add(data?.clipData!!.getItemAt(i).uri)
-                store_uri_string =
-                    store_uri_string + "|${data?.clipData!!.getItemAt(i).uri}"    // this data will store to the database with separations with |uri|uri|uri
-                send_data.add(
-                    universal_model.one_chat_property(
+             send_data.add(universal_model.one_chat_property(
+                        PAIR_,
+                        opposite_person_name,
                         message_number,
-                        "${data?.clipData!!.getItemAt(i).uri}",
+                        "${data.data}",
+                        "i",
+                        true,
+                        "no",
+                        "${Calendar.getInstance().time}",
+                        false,
+                        false,
+                        "none",
+                        "none",
+                        false,
+                        MY_NUMBER_LONG,
+                        opposite_number,
+                        "no",
+                        "no"))
+                    initiate_process_me(send_data)
+
+                TOTAL_SELECT_IMAGE = 0                                   // renewing the number otherwise it will count the previous selected message
+                val DB = universal_chat_store(this,null)
+                val thread: Thread = Thread({
+                  DB.save_message(PAIR_, message_number, "${data.data}", "i", true, "no", "3:00pm", "none", false, MY_NUMBER_LONG, opposite_number.toString(), "no", "no", false, false, "none",opposite_person_name)
+                })
+                thread.start()
+            }
+
+            if(data.clipData!=null){
+                val total_image = data.clipData!!.itemCount
+              Toast.makeText(this,"Total Image you have selected is ${total_image}",Toast.LENGTH_LONG).show()
+                Log.d("iiiiiiiiimage","data.clipData:${data.clipData}")
+                for (i in 0..total_image-1){
+                    val get_uri : ClipData.Item = data.clipData!!.getItemAt(i)
+                    Log.d("ggggggget_uri","${get_uri}")
+                    Log.d("Llllllink_uri","${get_uri.uri}")
+                    send_data.add(universal_model.one_chat_property(
+                        PAIR_,
+                        opposite_person_name,
+                        message_number,
+                        "${get_uri.uri}",          // this uri works fine
                         "i",
                         true,
                         "no",
@@ -387,27 +467,32 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
             TOTAL_SELECT_IMAGE = 0                                   // renewing the number otherwise it will count the previous selected message
             val DB = universal_chat_store(this, null)
             val thread: Thread = Thread({
-                DB.save_message(
-                    PAIR_,
-                    message_number,
-                    store_uri_string,
-                    "i",
-                    true,
-                    "no",
-                    "3:00pm",
-                    "none",
-                    false,
-                    MY_NUMBER_LONG,
-                    opposite_number.toString(),
-                    "no",
-                    "no",
-                    false,
-                    false,
-                    "none")
+                for (i in 0..total_image-1){
+                    val get_uri : ClipData.Item = data.clipData!!.getItemAt(i)    // this is the must way to extract the URIs of the Images
+                    DB.save_message(
+                        PAIR_,
+                        message_number,
+                        "${get_uri.uri}",
+                        "i",
+                        true,
+                        "no",
+                        "3:00pm",
+                        "none",
+                        false,
+                        MY_NUMBER_LONG,
+                        opposite_number.toString(),
+                        "no",
+                        "no",
+                        false,
+                        false,
+                        "none",
+                        opposite_person_name )
+                }
             })
             thread.start()
         }
-    } }
+    }
+    }
 
     private fun show_the_past_media(){
          var parentRecyclerView : RecyclerView? = null
@@ -451,41 +536,54 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
               if(selection_types=="TYPE_OTHER") TOTAL_OTHERS++
               if(selection_types=="VOTING_TAMPLATE")TOTAL_VOTER_TEMPLATE++
               if(selection_types=="REACTION_TAMPLATE")TOTAL_REACTION_TAMPLATE++
-            }
-              if(TOTAL_ME!=selectedPostItems.size){
-                  val list_items = arrayOf("delete all ${selectedPostItems.size} messages for me","delete all ${selectedPostItems.size} messages for everyone")
+          }
+            if(TOTAL_ME!=selectedPostItems.size){
                   val mBuilder = AlertDialog.Builder(this)
-                  mBuilder.setTitle("Delete Messages")
-                  mBuilder.setSingleChoiceItems(list_items,1){dialogInterface , i->
-                      // delete for yours only
-                      // from database
-                      // from recycle view
-                      Toast.makeText(this,"Clicked to the delete items:${i}",Toast.LENGTH_LONG).show()
-                      dialogInterface.dismiss()
-                  }
-                  mBuilder.setNeutralButton("Cancel"){ dialog , which->
-                      dialog.cancel()
+                  mBuilder.setTitle("Delete ${selectedPostItems.size} Messages for me")
+                  mBuilder.setNeutralButton("OK"){ dialog , which->
+                      for(i in selectedPostItems){
+                          adapter.delete_message(i.toInt())
+                      }
+                      dialog.dismiss()
+                      val db = universal_chat_store(this,null)
+                      for(k in selectedPostItems){
+                          db.delete_specific_message_number("${PAIR_}|${k+1}")     // because message number in database starts from 1 and here in GUI system starts from 0
+                      }
                   }
                   val dd = mBuilder.create()
                   dd.show()
             }
-              if(TOTAL_ME==selectedPostItems.size){
-                  val list_items = arrayOf("delete all ${selectedPostItems.size} messages")
+          if(TOTAL_ME==selectedPostItems.size){
+                  val list_items = arrayOf("Delete ${selectedPostItems.size} messages for me","Delete ${selectedPostItems.size} messages for everyone")
                   val mBuilder = AlertDialog.Builder(this)
                   mBuilder.setTitle("Delete Messages")
                   mBuilder.setSingleChoiceItems(list_items,1){dialogInterface , i->
                       // delete for both side
                       // from database
                       // from recycle view
-                      Toast.makeText(this,"You Deleted ${selectedPostItems.size} messages for you",Toast.LENGTH_LONG).show()
+                      if(i==0){    // Delete  messages for me
+                          for(j in selectedPostItems) {
+                              adapter.delete_message(j.toInt())
+                          }
+                          Toast.makeText(this,"You Deleted ${selectedPostItems.size} messages for you",Toast.LENGTH_LONG).show()
+                      }
+                      if(i==1){    // Delete messages for everyOne
+                          for(j in selectedPostItems) {
+                              adapter.delete_message(j.toInt())
+                          }
+                          Toast.makeText(this,"You Deleted ${selectedPostItems.size} messages for everyOne",Toast.LENGTH_LONG).show()
+                      }
+                      val db = universal_chat_store(this,null)
+                      for(k in selectedPostItems){
+                          db.delete_specific_message_number("${PAIR_}|${k+1}")     // because message number in database starts from 1 and here in GUI system starts from 0
+                      }
                   }
-                  mBuilder.setNeutralButton("Cancel"){ dialog , which->
-                      dialog.cancel()
+                  mBuilder.setNeutralButton("OK"){dialog , which->
+                      dialog.dismiss()
                   }
                   val dd = mBuilder.create()
                   dd.show()
-          }
-
+             }
           }    // this function will activate depending on th esend types of the user in the chat secreesn
 
     R.id.star_function_id ->{
@@ -502,7 +600,7 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
                 for(i in selectedPostItems){
                     msg_number.add("${PAIR_}|${i+1}")                               // as the message number of the data base is one number ahead so add before retriving data
                 }
-                mBuilder.setSingleChoiceItems(list_items,1) { dialogInterface,i->
+                mBuilder.setSingleChoiceItems(list_items,1) {dialogInterface,i->
                     // dialog for unstar message
                     // change layout of recycle
                     val thread : Thread = Thread({
@@ -529,7 +627,7 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
                 for(i in selectedPostItems){
                     msg_number.add("${PAIR_}|${i+1}")
                 }
-                mBuilder.setSingleChoiceItems(list_items,1) { dialogInterface , i ->
+                mBuilder.setSingleChoiceItems(list_items,0) { dialogInterface , i ->
                     // dialog for star all message
                     // change layout of recycle
                     val thread : Thread = Thread({
@@ -556,103 +654,88 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
             // Intent to the forward message tamplate
             // select the contacts to forward
             // send to the server
+
+          var message_to_forward : ArrayList<universal_model.one_chat_property> = ArrayList<universal_model.one_chat_property>()
+          for( k in selectedPostItems){   // this is for selected positions in the messageList
+              message_to_forward.add(all_chats_store[k.toInt()])    // inserting all the messages to forward
+          }
+
+           // to <ArrayList>
+           // message one line(one chat property)
+
+           val intent : Intent = Intent(this,chips_formation::class.java)
+//           val args : Bundle = Bundle()
+//           args.putSerializable("ARRAYLIST",`message_to_forward` as Serializable)
+//           intent.putExtra("messages",args)
+
+          val mapper = jacksonObjectMapper()
+          val str : String = mapper.writeValueAsString(message_to_forward)
+          intent.putExtra("messages",str)
+          startActivity(intent)
+
         }
 
     R.id.copy_msg_id ->{
             TOTAL_VOTER_TEMPLATE = 0
             TOTAL_REACTION_TAMPLATE = 0
+            var TOTAL_DOCUMENT_PHOTO_VEDIO = 0
 
-            for(i in selectedPostItems){
+            // copying the text that have selecte
+          var index = ""
+          for(i in selectedPostItems){
                 val selection_types : String = adapter.position_to_type(i)
                 if(selection_types=="VOTING_TAMPLATE")TOTAL_VOTER_TEMPLATE++
                 if(selection_types=="REACTION_TAMPLATE")TOTAL_REACTION_TAMPLATE++
-            }
-            if(TOTAL_REACTION_TAMPLATE==0 && TOTAL_VOTER_TEMPLATE==0){
-                // show that messages are coppied
-                // copy all message
-                Toast.makeText(this,"Messages are copied",Toast.LENGTH_SHORT).show()
-            }
-        }
-
-    R.id.remainder_chat_id->{
-              var remainder_chat_msg = 0
-              for(i in selectedPostItems){    // now here i is the the index of selectedPositions
-                  if(all_chats_store[i.toInt()].remainder!="none")remainder_chat_msg++
-              }
-            val msg_numbers : ArrayList<String> = ArrayList<String>()
-            for(i in selectedPostItems){
-                msg_numbers.add("${PAIR_}|${i+1}")                            // as the message number of the data base is one number ahead so add before retriving data
-                Log.d("@@@@@Now selected message:","is: ${i}")
-            }
-            val DB = universal_chat_store(context_,null)
-
-            if(selectedPostItems.size==remainder_chat_msg){   // when all the selected message is remaindered msg
-                  Log.d("@@@@@Entering to ","all set reminader sections")
-                  val list_items = arrayOf("Remove remainder from all ${selectedPostItems.size} messages for me")
-                  val mBuilder = AlertDialog.Builder(this)
-                  mBuilder.setTitle("Remove remiander")
-                  mBuilder.setSingleChoiceItems(list_items,1){ dialogInterface,i->
-                      // dialog for unremainder message
-                      // change layout of recycle
-                      val thread : Thread = Thread({
-                          DB.update_one_chat_property("remainder", msg_numbers, "none")
-                      })
-                      thread.start()
-                      Toast.makeText(this,"Remainder removed for this messages",Toast.LENGTH_LONG).show()
-                      dialogInterface.dismiss()
-                  }
-                  mBuilder.setNeutralButton("Cancel"){ dialog , which->
-                      dialog.cancel()
-                  }
-                  val dd = mBuilder.create()
-                  dd.show()
-              }
-
-            if(selectedPostItems.size!=remainder_chat_msg){   // when all selected messages are not remaindered
-                val mBuilder = AlertDialog.Builder(this)
-                val layout = LinearLayout(context_)
-                layout.orientation = LinearLayout.HORIZONTAL
-
-                // this is for hours inputing
-                val input_hours = EditText(context_)
-                input_hours.hint = "Hours"
-                input_hours.inputType = InputType.TYPE_CLASS_NUMBER
-                layout.addView(input_hours) // Notice this is an add method
-
-                // this is for minute inputing
-                val minute_ = EditText(this)
-                minute_.hint = "Minute"
-                minute_.inputType = InputType.TYPE_CLASS_NUMBER
-                layout.addView(minute_) // Another add method
-
-                // this is for inputing AM or PM
-                val _indi = EditText(this)
-                _indi.hint = "AM or PM"
-                _indi.inputType = InputType.TYPE_CLASS_TEXT
-                layout.addView(_indi) // Another add method
-
-                mBuilder.setView(layout) // Again this is a set method, not add
-                mBuilder.setTitle("Please enter the time")
-                mBuilder.setPositiveButton("OK", DialogInterface.OnClickListener { dialog, which ->
-                    // Here you get get input text from the Edittext
-                    var hours_ = input_hours.text.toString()
-                    var minute_ = minute_.text.toString()
-                    var _status : String  = _indi.text.toString()
-                    set_options_for_remainder(msg_numbers,hours_,minute_,_status)
-
-                    set_alarm(hours_,minute_)
-                })
-                val dd = mBuilder.create()
-                dd.show()
-                // for changing layout of the items
-                val _total_selected = selectedPostItems.size
-                for(j in selectedPostItems) {
-                    adapter.notifyItemRangeChanged(selectedPostItems[0].toInt(),selectedPostItems[_total_selected-1].toInt(),"ADD_REMAINDER")
+                if(selection_types=="IMAGE_OR_VEDIO_OR_DOCUMENT") TOTAL_DOCUMENT_PHOTO_VEDIO++
+                if(all_chats_store[i.toInt()].category=="m") {
+                   index = index + "${all_chats_store[i.toInt()].data} : "
                 }
-            }
+          }
+         if(TOTAL_REACTION_TAMPLATE==0 && TOTAL_VOTER_TEMPLATE==0 && TOTAL_DOCUMENT_PHOTO_VEDIO==0){       // this is text messages that can copied
+                 val clipboard  = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                 val clip : ClipData = ClipData.newPlainText("EditText",index)
+                 clipboard.setPrimaryClip(clip)
+                 Toast.makeText(this,"Messages are copied",Toast.LENGTH_SHORT).show()
+         }
+        else{          // this type of messages cannot be copied
+           Toast.makeText(this,"This type of messages cannot be copied!",Toast.LENGTH_SHORT).show()
+        }
         }
 
-  }
+//    R.id.remainder_chat_id->{
+//              var remainder_chat_msg = 0
+//              for(i in selectedPostItems){    // now here i is the the index of selectedPositions
+//                  if(all_chats_store[i.toInt()].remainder!="none")remainder_chat_msg++
+//              }
+//            val msg_numbers : ArrayList<String> = ArrayList<String>()
+//            for(i in selectedPostItems){
+//                msg_numbers.add("${PAIR_}|${i+1}")           // as the message number of the data base is one number ahead so add before retriving data
+//            }
+//            val DB = universal_chat_store(context_,null)
+//
+//            if(selectedPostItems.size==remainder_chat_msg){   // when all the selected message is remaindered msg
+//
+//            // make an alert dialog to remove the alarm time from database
+//
+//            val thread : Thread = Thread({
+//                DB.update_one_chat_property("remainder", msg_numbers, "none")     // removing the alarm time from database
+//            })
+//            }
+//
+//            if(selectedPostItems.size!=remainder_chat_msg){   // when all selected messages are not remaindered and setting new remaindered
+//                val sheet: BottomSheetDialog = BottomSheetDialog(this)
+//                sheet.setContentView(R.layout.new_alarm_setting)
+//
+//                val time_picker = findViewById<TimePicker>(R.id.time_picker)
+//                time_picker.setOnTimeChangedListener { _, hours,minute ->
+//
+//                }
+//
+//                sheet.show()
+//            }
+//        }
+
+    }
     return true
 }
 
@@ -671,81 +754,19 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
 
     override fun onDestroyActionMode(mode : ActionMode?){
         adapter.tracker?.clearSelection()
-        adapter.notifyDataSetChanged()
+//        adapter.notifyDataSetChanged()
         actionMode = null
     }
 
-    private fun set_options_for_remainder(msg_numbers : ArrayList<String>,hours_ : String, minute : String,_indi : String){
-        val list_items = arrayOf("Add remainder in all ${selectedPostItems.size} messages for me","Add remainder in all ${selectedPostItems.size} messages for all")
-        val mBuilder = AlertDialog.Builder(this)
-        mBuilder.setTitle("Add Remiander")
-        val mapper = jacksonObjectMapper()
-        val DB = universal_chat_store(this,null)
-        mBuilder.setSingleChoiceItems(list_items,1) { dialogInterface,i->
-            // dialog for unremainder message
-            // change layout of recycle
+    private fun set_options_for_remainder(msg_numbers : ArrayList<String> , hours_ : String , minute : String , _indi : String){
 
-            val time_ = mapper.writeValueAsString(universal_model.time_(hours_.toString(),minute,_indi))   // this is the stringify status of time in hpur sand minutes
-            var save_time_data : String = ""
-            if(i==0) {                                                                                      // for setting remainder for only me
-               save_time_data =  mapper.writeValueAsString(universal_model.remainder_store("me",time_))
-               Toast.makeText(this,"adding remainder for others",Toast.LENGTH_SHORT).show()
-            }
-            if(i==1){                                                                                       // for setting remainder for only all
-               save_time_data = mapper.writeValueAsString(universal_model.remainder_store("all",time_))
-                Toast.makeText(this,"adding remainder for all",Toast.LENGTH_SHORT).show()
-            }
-            val thread: Thread = Thread({
-                    DB.update_one_chat_property("remainder", msg_numbers, save_time_data)
-            })
-                thread.start()
-                dialogInterface.dismiss()
-        }
-
-        mBuilder.setNeutralButton("Cancel"){ dialog , which->
-            dialog.cancel()
-        }
-        val dd = mBuilder.create()
-        dd.show()
-    }    // this function is specific for when user is selected for add remainder as time
-
-    private  fun set_alarm(hour_ : String , minute_ : String){       //this functions is for universal alarm setting in this chatScreen also for the timer chat
-        val calendar : Calendar = Calendar.getInstance()
-
-        if(Build.VERSION.SDK_INT >= 23){
-            calendar.set(
-                calendar.get(Calendar.YEAR),
-                calendar.get(Calendar.MONTH),
-                calendar.get(Calendar.DAY_OF_MONTH),
-                hour_.toInt(),minute_.toInt(), 0)
-        }
-        else{
-            calendar.set(
-                calendar.get(Calendar.YEAR),
-                calendar.get(Calendar.MONTH),
-                calendar.get(Calendar.DAY_OF_MONTH), hour_.toInt(),minute_.toInt(), 0)
-        }
-        setAlarm(calendar.timeInMillis)
-    }
-    private fun setAlarm(timeInMillis : Long){
-        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val intent = Intent(context_,MyAlarm::class.java)
-
-        val pendingIntent = PendingIntent.getBroadcast(this,0,intent,0)
-
-        alarmManager.setRepeating(
-            AlarmManager.RTC,
-            timeInMillis,
-            AlarmManager.INTERVAL_DAY,
-            pendingIntent
-        )
-      Toast.makeText(this,"Alarm is set",Toast.LENGTH_SHORT).show()
     }
 
     private fun hideReplayLayout(){                      // this functions hide the replay layout for if not required
         reply_layout.visibility = View.GONE
         SELECTED_REPLAY_MESSAGE = 0
-    }                                                   //Swiping function of message
+    }                                                   //Swiping right function of message
+
     private fun showQuotedMessage(message : universal_model.one_chat_property){
         Toast.makeText(this,"The replay text is:${message.data}",Toast.LENGTH_SHORT).show()
         edit_text.requestFocus()
@@ -753,5 +774,86 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
         val inputMethodManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         inputMethodManager?.showSoftInput(edit_text,InputMethodManager.SHOW_IMPLICIT)
         reply_layout.visibility = View.VISIBLE
+    }
+
+    private fun selection_template(){
+//        reaction_store_selection    ,  selection_vote_template
+        val sheet : BottomSheetDialog = BottomSheetDialog(this)
+        sheet.setContentView(R.layout.select_template_option)           // for selections of template
+        sheet.show()
+
+        val _reaction = sheet.findViewById<RelativeLayout>(R.id.reaction_store_selection)
+        val _vote = sheet.findViewById<RelativeLayout>(R.id.selection_vote_template)
+        val _show_selection = sheet.findViewById<TextView>(R.id.show_template_selection)
+        val topic = sheet.findViewById<EditText>(R.id.topic_edit_text)
+        val _post = sheet.findViewById<Button>(R.id.template_post_id)
+
+        var template_data : template_selection_ ? = null
+        var TEMPLATE_NUMBER = ""
+
+        _reaction!!.setOnClickListener {
+            TEMPLATE_NUMBER = "storing_reaction"
+            _show_selection!!.setText("Enter Topic For '${TEMPLATE_NUMBER}' template")
+        }
+        _vote!!.setOnClickListener {
+          TEMPLATE_NUMBER = "voting"
+            _show_selection!!.setText("Enter Topic For '${TEMPLATE_NUMBER}' template")
+        }
+
+        val store : ArrayList<universal_model.one_chat_property> = ArrayList<universal_model.one_chat_property>()
+        var _time : String = "${Calendar.getInstance().timeInMillis}"   // set this time when message is sended
+        var _message_: String = ""
+        // save to database universal store
+        TOTAL_MESSAGE++
+        var message_number: String = ""
+        var pair : String = ""
+
+        if (MY_NUMBER_LONG > OPPOSITE_PERSON_NUMBER.toLong()) {
+            message_number = "${TOTAL_MESSAGE}"
+            pair = "${MY_NUMBER_LONG}"+"|"+OPPOSITE_PERSON_NUMBER
+        }
+        if (MY_NUMBER_LONG < OPPOSITE_PERSON_NUMBER.toLong()) {
+            message_number ="${TOTAL_MESSAGE}"
+            pair = OPPOSITE_PERSON_NUMBER + "|" + "${MY_NUMBER_LONG}"
+        }
+
+        var _replay_status = ""
+        if(SELECTED_REPLAY_MESSAGE==0) _replay_status ="no"
+        if(SELECTED_REPLAY_MESSAGE!=0) _replay_status = "${SELECTED_REPLAY_MESSAGE}"
+
+//        all_chats_store.add(universal_model.one_chat_property(message_number,_message_,"m",true,"no",_time,false,false,"storing_reaction",
+//            "none",false,MY_NUMBER_LONG,OPPOSITE_PERSON_NUMBER.toLong(),_replay_status,"none"))     // update message in Ram
+
+       val db = universal_chat_store(this,null)
+        val thread : Thread = Thread({
+            db.save_message(pair, message_number, _message_, "m", true, "not", _time, "none", false, 6900529357, OPPOSITE_PERSON_NUMBER,_replay_status,"no",false,false,TEMPLATE_NUMBER,opposite_person_name)
+        })
+
+        // after clicking the post button
+        _post!!.setOnClickListener {
+            val text_ = topic!!.text.toString()
+            if(text_.isEmpty()){
+                Toast.makeText(this,"please enter the Topic",Toast.LENGTH_SHORT).show()
+            }
+            if(text_.isNotEmpty()){
+                if(TEMPLATE_NUMBER=="storing_reaction"){
+                    val arr : ArrayList<comment> = ArrayList<comment>()
+                    var reaction_tem : reaction_store_model = reaction_store_model(text_,false,0,arr)
+                    _message_ = mapper.writeValueAsString(reaction_tem)
+                    Log.d("sssssssstringify","of reaction store model ${_message_}")
+                    store.add(universal_model.one_chat_property(PAIR_,opposite_person_name,message_number,_message_,"m",true,"no",_time,false,false,"storing_reaction",
+                        "none",false,MY_NUMBER_LONG,OPPOSITE_PERSON_NUMBER.toLong(),_replay_status,"none"))
+                }
+                if(TEMPLATE_NUMBER=="voting"){
+                    var voting_temp : voting_template = voting_template(text_,0,0,0)
+                    _message_ = mapper.writeValueAsString(voting_temp)
+                    store.add(universal_model.one_chat_property(PAIR_,opposite_person_name,message_number,_message_,"m",true,"no",_time,false,false,"voting",
+                        "none",false,MY_NUMBER_LONG,OPPOSITE_PERSON_NUMBER.toLong(),_replay_status,"none"))
+                }
+                initiate_process_me(store)
+            }
+            thread.start()
+        }
+
     }
 }
