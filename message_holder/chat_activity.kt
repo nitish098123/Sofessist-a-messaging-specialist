@@ -844,6 +844,5 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
             }
             thread.start()
         }
-
     }
 }
