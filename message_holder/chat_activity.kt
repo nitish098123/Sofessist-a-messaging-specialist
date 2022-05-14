@@ -5,28 +5,25 @@ package com.example.database_part_3.message_holder
 */
 
 import android.app.Activity
-import android.app.AlarmManager
-import android.app.PendingIntent
+import android.app.KeyguardManager
 import android.content.ClipData
 import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
+import android.hardware.biometrics.BiometricManager
+import android.hardware.biometrics.BiometricPrompt
 import android.os.Build
 import android.os.Bundle
+import android.os.CancellationSignal
 import android.os.Handler
 import android.provider.MediaStore
-import android.text.ClipboardManager
-import android.text.InputType
 import android.util.Log
-import android.view.Menu
-import android.view.MenuInflater
-import android.view.MenuItem
-import android.view.View
+import android.view.*
 import android.view.inputmethod.InputMethodManager
 import android.widget.*
-import android.widget.LinearLayout
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.view.ActionMode
@@ -40,11 +37,9 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.database_part_3.R
-import com.example.database_part_3.alarm.MyAlarm
 import com.example.database_part_3.db.universal_chat_store
 import com.example.database_part_3.forward.chips_formation
 import com.example.database_part_3.model.*
-import com.example.database_part_3.front_page.recipeList
 import com.example.database_part_3.user_info.ParentRecyclerViewAdapter
 import com.example.database_part_3.user_info.screen_activity
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -57,7 +52,7 @@ import kotlinx.android.synthetic.main.network_testing.*
 import kotlinx.android.synthetic.main.other_message.*
 import kotlinx.android.synthetic.main.presshold_selection_me.*
 import kotlinx.android.synthetic.main.select_template_option.*
-import java.io.Serializable
+import okhttp3.internal.notify
 import java.util.*
 import kotlin.collections.ArrayList
 
@@ -87,12 +82,60 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
     private val mapper = jacksonObjectMapper()
     public val GALLERY_INTENT_CALLED = 1
     public val GALLERY_KITKAT_INTENT_CALLED = 2
+    private var PRIVATE_CHAT : Boolean = false
+    private var cancellationSignal : CancellationSignal ? = null
+//    private val authenticationCallback : BiometricPrompt.AuthenticationCallback
+
 
     // for the selected items
     var TOTAL_ME = 0
     var TOTAL_OTHERS = 0
     var TOTAL_REACTION_TAMPLATE = 0
     var TOTAL_VOTER_TEMPLATE = 0
+
+    var FIRST_POSITION = 0
+    var LAST_POSITION = 0
+
+    // for biometric lock
+    val authenticationCallback : BiometricPrompt.AuthenticationCallback
+        get() =
+            @RequiresApi(Build.VERSION_CODES.P)
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationError(
+                    errorCode: Int,
+                    errString: CharSequence?
+                ) {
+                    super.onAuthenticationError(errorCode, errString)
+                    notifyUser("Authentication error : $errString ")
+                }
+
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult?) {
+                    super.onAuthenticationSucceeded(result)
+                    notifyUser("Authentication success!")
+//                    startActivity(Intent(this@chat_activity,Sec))
+                }
+            }
+
+    fun notifyUser(str : String){
+        Toast.makeText(this,str,Toast.LENGTH_SHORT).show()
+    }
+     private fun checkBiometricSupport() : Boolean{
+         val keyguardManager : KeyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+         if(!keyguardManager.isKeyguardSecure){
+             notifyUser("FingurPrint authentication has not been enabled in this settings")
+             return false
+         }
+         return if (packageManager.hasSystemFeature(PackageManager.FEATURE_FINGERPRINT)){
+             true
+         }  else true
+     }
+    private fun getCancel() : CancellationSignal {
+        cancellationSignal = CancellationSignal()
+        cancellationSignal?.setOnCancelListener {
+            notifyUser("Authentication was canceled!")
+        }
+        return  cancellationSignal as CancellationSignal
+    }
 
     override fun onCreate(savedInstanceState: Bundle?){     // this means u can take inputs from layouts directly
         super.onCreate(savedInstanceState)
@@ -112,7 +155,8 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
 
         opposite_number = _number.toLong()
 
-        messageList_recycle.layoutManager = LinearLayoutManager(this)
+        val layout_manager = LinearLayoutManager(this)
+        messageList_recycle.layoutManager = layout_manager
         adapter = DataAdapter(this)
         messageList_recycle.adapter = adapter
 
@@ -128,31 +172,58 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
         PAIR_ = pair_
         val handler: Handler = Handler()         // must be declare in under the main thread
         val DB = universal_chat_store(this,null)                // this is for universal chat store database
+        var persons_info = persons_info_last_msg("",false,true)
 
         // database is giving complete informations of every chat with every property
         val thread_ : Thread = Thread({
-
+            val time_1 = System.currentTimeMillis()
             all_chats_store = DB.get_messages(pair_,"")
-
+            persons_info = DB.get_persons_info(_number)
             TOTAL_MESSAGE = all_chats_store.size
 
             if (all_chats_store.size > 0){
-                val tt = all_chats_store.size
                 var first_message : String = ""
-                var j=0
+
                 handler.post({
                     Toast.makeText(this,"the size is: ${first_message}",Toast.LENGTH_SHORT).show()
                     initiate_process_me(all_chats_store)
+                    // if the chats become private then privent the sceenshot
+                    if(persons_info.private_chat==true)
+                    {
+                        window.setFlags(WindowManager.LayoutParams.FLAG_SECURE,WindowManager.LayoutParams.FLAG_SECURE)
+
+                        checkBiometricSupport()
+                        val biometricPrompt : BiometricPrompt = BiometricPrompt.Builder(this)
+                            .setTitle("Biometric Authentication")
+                            .setSubtitle("Authentication required")
+                            .setNegativeButton("Cancel",this.mainExecutor,DialogInterface.OnClickListener{ dialog, which ->
+                                notifyUser("Authentication cancled")
+                            })
+                            .build()
+                        biometricPrompt.authenticate(getCancel(),mainExecutor,authenticationCallback)
+
+                        Toast.makeText(this,"you cannot take th escreen shoot",Toast.LENGTH_SHORT).show()
+                    }
+
+                    // removing the lock butoon when pair chat is not private
+                    if(persons_info.private_chat==false){
+                        lock_pair_chat_id.visibility = View.GONE
+                    }
                 })
             }
+
+            val time_2 =  System.currentTimeMillis()
+            // it takes some 14ms
+            Log.d("","nnnnnnnnnnnet time taken to bring data from the data base:${time_2 - time_1}")
+            DB.close()
         })
         thread_.start()
 
         val text_name : TextView = findViewById(R.id.pair_message_person_name)
         text_name.setText("${_name}")
 
-      // for tracker of long pressed of message
-      tracker = SelectionTracker.Builder<Long>(
+        // for tracker of long pressed of message
+        tracker = SelectionTracker.Builder<Long>(
             "mySelection",
             messageList_recycle,
             StableIdKeyProvider(messageList_recycle),
@@ -162,7 +233,7 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
 
 
         // making the tracker for selections
-    tracker?.addObserver(object : SelectionTracker.SelectionObserver<Long>(){
+        tracker?.addObserver(object : SelectionTracker.SelectionObserver<Long>(){
             override fun onSelectionChanged(){
             super.onSelectionChanged()
 
@@ -209,17 +280,9 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
                  "none",false,MY_NUMBER_LONG,_number.toLong(),_replay_status,"none"))
             val handler: Handler = Handler()
             val db = universal_chat_store(this, null)
-            recipeList!!.add(universal_model.front_contact_msg(opposite_person_name,_message_,"3:40pm",_number))  // for saving the persons name in the MainActivity List
             val thread : Thread = Thread({
             val index_of_message : Boolean = db.save_message(pair, message_number, _message_, "m", true, "not", _time_, "none",
                                                             false, 6900529357, _number,_replay_status,"no",false,edit_msg,"none",_name)
-
-//                db.update_user_settings("last_msg_arrived",_message_,_number)      // last_message_arrived for one pair of message
-
-//                if(TOTAL_MESSAGE==1){     //  this means this person is talking for the first time
-//                    db.save_person_info(_name,_number,"","","",false,false,"","","","","","",
-//                    false,false,0,"","")    // this is first time to save this user in database
-//                }
             })
 
             all_chats_store.add(universal_model.one_chat_property(pair,_name,message_number,_message_,"m",true,"no","${_time}",false,false,"none",
@@ -244,6 +307,7 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
             val intent : Intent = Intent(this,screen_activity::class.java)
             intent.putExtra("_name_",_name)     // for passing name
             intent.putExtra("_number_",_number)   // for passing number
+
             startActivity(intent)
             Log.d(">>>clicked chat_Activity","ssdd")
       }
@@ -298,7 +362,7 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
             val drawable_ = Drawable.createFromStream(input_stream, WALLPAPER_URI)
             messageList_recycle.background = drawable_
         }
-}    // last of onCreate functions
+    }    // last of onCreate functions
 
 
     override fun onBackPressed(){
@@ -524,8 +588,8 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
     // After long pressed in the message item the menu items will ben shown by this functions
     override fun onActionItemClicked(mode: ActionMode?, item: MenuItem?) : Boolean {  // this functions controlled the clicked long pressed functions
 
-   when(item?.itemId){
-    R.id.delete_function_id -> {
+      when(item?.itemId){
+      R.id.delete_function_id -> {
               TOTAL_ME = 0
               TOTAL_OTHERS = 0
               TOTAL_VOTER_TEMPLATE = 0
@@ -587,7 +651,7 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
              }
           }    // this function will activate depending on th esend types of the user in the chat secreesn
 
-    R.id.star_function_id -> {
+      R.id.star_function_id -> {
             var stared_msg_number = 0
             val DB = universal_chat_store(this,null)
             for(i in selectedPostItems){
@@ -650,7 +714,7 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
             }
           }
 
-    R.id.forward_msg_id -> {        // this is used fro only forwarding mesages
+      R.id.forward_msg_id -> {        // this is used fro only forwarding mesages
           Toast.makeText(this,"Forward msg menu activate!!!",Toast.LENGTH_SHORT).show()
 
           var message_to_forward : ArrayList<universal_model.one_chat_property> = ArrayList<universal_model.one_chat_property>()
@@ -666,32 +730,41 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
 
     }
 
-    R.id.copy_msg_id ->{
-            TOTAL_VOTER_TEMPLATE = 0
-            TOTAL_REACTION_TAMPLATE = 0
-            var TOTAL_DOCUMENT_PHOTO_VEDIO = 0
-
-            // copying the text that have selecte
+      R.id.copy_msg_id -> {
+          TOTAL_VOTER_TEMPLATE = 0
+          TOTAL_REACTION_TAMPLATE = 0
+          var TOTAL_DOCUMENT_PHOTO_VEDIO = 0
+          var LOCK_:Int = 0
+          // copying the text that have selecte
           var index = ""
           for(i in selectedPostItems){
                 val selection_types : String = adapter.position_to_type(i)
                 if(selection_types=="VOTING_TAMPLATE")TOTAL_VOTER_TEMPLATE++
                 if(selection_types=="REACTION_TAMPLATE")TOTAL_REACTION_TAMPLATE++
                 if(selection_types=="IMAGE_OR_VEDIO_OR_DOCUMENT") TOTAL_DOCUMENT_PHOTO_VEDIO++
-                if(all_chats_store[i.toInt()].category=="m") {
+
+               if(all_chats_store[i.toInt()].category=="m") {
                    index = index + "${all_chats_store[i.toInt()].data} : "
-                }
+               }
+               if(all_chats_store[i.toInt()].lock==true) LOCK_++                //  this means user locked screenshoot
           }
-         if(TOTAL_REACTION_TAMPLATE==0 && TOTAL_VOTER_TEMPLATE==0 && TOTAL_DOCUMENT_PHOTO_VEDIO==0){       // this is text messages that can copied
-                 val clipboard  = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                 val clip : ClipData = ClipData.newPlainText("EditText",index)
+
+         if(LOCK_==0) {
+             if (TOTAL_REACTION_TAMPLATE == 0 && TOTAL_VOTER_TEMPLATE == 0 && TOTAL_DOCUMENT_PHOTO_VEDIO == 0) {       // this is text messages that can copied
+                 val clipboard =
+                     getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                 val clip: ClipData = ClipData.newPlainText("EditText", index)
                  clipboard.setPrimaryClip(clip)
-                 Toast.makeText(this,"Messages are copied",Toast.LENGTH_SHORT).show()
+                 Toast.makeText(this, "Messages are copied", Toast.LENGTH_SHORT).show()
+             } else {          // this type of messages cannot be copied
+                 Toast.makeText(this, "This type of messages cannot be copied!", Toast.LENGTH_SHORT)
+                     .show()
+             }
          }
-        else{          // this type of messages cannot be copied
-           Toast.makeText(this,"This type of messages cannot be copied!",Toast.LENGTH_SHORT).show()
-        }
-        }
+         if(LOCK_!=0){
+            Toast.makeText(this,"The user has locked one of your selected message , so you cannot copy it nor screenshoot it",Toast.LENGTH_LONG).show()
+         }
+    }
 
 //    R.id.remainder_chat_id->{
 //              var remainder_chat_msg = 0
@@ -727,13 +800,21 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
 
     }
     return true
-}
+    }
 
-    override fun onCreateActionMode(mode: ActionMode?, menu: Menu?): Boolean {        //  this one is responsible for showing the each functions icon of long pressed
+    //  this one is responsible for showing the each functions icon of long pressed
+    // in this functions we all controll the menu icon features
+    override fun onCreateActionMode(mode: ActionMode?, menu: Menu?): Boolean {
         mode?.let {
             val inflater : MenuInflater = it.menuInflater
             inflater.inflate(R.menu.presshold_menu,menu)
             return true
+        }
+        if(PRIVATE_CHAT==true){      // if it is a secret chat then make invisible some of the items
+            val copy_ : MenuItem = menu!!.findItem(R.id.copy_msg_id)
+            val forward : MenuItem = menu.findItem(R.id.forward_msg_id)
+            copy_.setVisible(false)
+            forward.setVisible(false)
         }
         return false
     }
@@ -798,11 +879,11 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
         var message_number: String = ""
         var pair : String = ""
 
-        if (MY_NUMBER_LONG > OPPOSITE_PERSON_NUMBER.toLong()) {
+        if(MY_NUMBER_LONG > OPPOSITE_PERSON_NUMBER.toLong()){
             message_number = "${TOTAL_MESSAGE}"
             pair = "${MY_NUMBER_LONG}"+"|"+OPPOSITE_PERSON_NUMBER
         }
-        if (MY_NUMBER_LONG < OPPOSITE_PERSON_NUMBER.toLong()) {
+        if(MY_NUMBER_LONG < OPPOSITE_PERSON_NUMBER.toLong()){
             message_number ="${TOTAL_MESSAGE}"
             pair = OPPOSITE_PERSON_NUMBER + "|" + "${MY_NUMBER_LONG}"
         }
@@ -815,29 +896,33 @@ class chat_activity : AppCompatActivity() , ActionMode.Callback {
 //            "none",false,MY_NUMBER_LONG,OPPOSITE_PERSON_NUMBER.toLong(),_replay_status,"none"))     // update message in Ram
 
         val db = universal_chat_store(this,null)
+        val handler : Handler = Handler()
         val thread : Thread = Thread({
-            db.save_message(pair, message_number, _message_, "m", true, "not", _time, "none", false, 6900529357, OPPOSITE_PERSON_NUMBER,_replay_status,"no",false,false,TEMPLATE_NUMBER,opposite_person_name)
+            db.save_message(pair, message_number, _message_, "t", true, "not", _time, "none", false, 6900529357, OPPOSITE_PERSON_NUMBER,_replay_status,"no",false,false,TEMPLATE_NUMBER,opposite_person_name)
+            handler.post({
+                sheet.cancel()
+            })
         })
 
         // after clicking the post button
-        _post!!.setOnClickListener {
+        _post!!.setOnClickListener{
             val text_ = topic!!.text.toString()
             if(text_.isEmpty()){
                 Toast.makeText(this,"please enter the Topic",Toast.LENGTH_SHORT).show()
             }
             if(text_.isNotEmpty()){
                 if(TEMPLATE_NUMBER=="storing_reaction"){
-                    val arr : ArrayList<comment> = ArrayList<comment>()
+                    val arr : ArrayList<universal_model.one_chat_property> = ArrayList<universal_model.one_chat_property>()
                     var reaction_tem : reaction_store_model = reaction_store_model(text_,false,0,arr)
                     _message_ = mapper.writeValueAsString(reaction_tem)
                     Log.d("sssssssstringify","of reaction store model ${_message_}")
-                    store.add(universal_model.one_chat_property(PAIR_,opposite_person_name,message_number,_message_,"m",true,"no",_time,false,false,"storing_reaction",
+                    store.add(universal_model.one_chat_property(PAIR_,opposite_person_name,message_number,_message_,"t",true,"no",_time,false,false,"storing_reaction",
                         "none",false,MY_NUMBER_LONG,OPPOSITE_PERSON_NUMBER.toLong(),_replay_status,"none"))
                 }
                 if(TEMPLATE_NUMBER=="voting"){
                     var voting_temp : voting_template = voting_template(text_,0,0,0)
                     _message_ = mapper.writeValueAsString(voting_temp)
-                    store.add(universal_model.one_chat_property(PAIR_,opposite_person_name,message_number,_message_,"m",true,"no",_time,false,false,"voting",
+                    store.add(universal_model.one_chat_property(PAIR_,opposite_person_name,message_number,_message_,"v",true,"no",_time,false,false,"voting",
                         "none",false,MY_NUMBER_LONG,OPPOSITE_PERSON_NUMBER.toLong(),_replay_status,"none"))
                 }
                 initiate_process_me(store)
