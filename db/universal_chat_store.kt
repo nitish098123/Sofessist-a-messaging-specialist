@@ -11,14 +11,20 @@ import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.util.Log
-import com.example.database_part_3.model.universal_model
+import com.example.database_part_3.forward.container
+import com.example.database_part_3.forward.filtering_last_msg
+import com.example.database_part_3.forward.pair_to_model
+import com.example.database_part_3.model.*
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 
 
-class universal_chat_store(context :Context, factory:SQLiteDatabase.CursorFactory?):
-    SQLiteOpenHelper(context, DATABASE_NAME,factory, DATABASE_VERSION){
+class universal_chat_store(val context_ : Context, val factory : SQLiteDatabase.CursorFactory?) :
+    SQLiteOpenHelper(context_ , DATABASE_NAME,factory, DATABASE_VERSION){
+
+    private val mapper = jacksonObjectMapper()
 
     companion object{
-
         // for saving chats prooerties into the table
         const val DATABASE_NAME = "SOFASSIST"
         const val DATABASE_VERSION = 3
@@ -27,6 +33,7 @@ class universal_chat_store(context :Context, factory:SQLiteDatabase.CursorFactor
         const val PAIR = "PAIR"
         const val MESSAGE_NUMBER = "message_number"
         const val DATA = "chat_data"
+        const val NAME = "NAME_"
         const val CATEGORY = "category"
         const val READ = "read"
         const val DELETE = "chat_delete_or_not"
@@ -64,7 +71,8 @@ class universal_chat_store(context :Context, factory:SQLiteDatabase.CursorFactor
         const val REMAINDER_IN_PERSON_INFO = "remiander_chat_indexes_"
         const val LAST_MESSAGE_ARRIVED = "RECENT_MESSAGE_ARRIVED"
         const val GOUP_JOINED = "GROUP_JOINED_WITH_RESTRICT_USERS"
-
+        const val PRIVATE_CHAT = "private_chats"
+        const val SAVE_TO_GALLERY = "SAVE_TO_GALLERY"     // if "true" then save medias to gallery and if "false" then dont sabe to the galley
 
         // my account
         const val MY_ACCOUNT_TABLE ="MY_ACCOUNT_TABLE"
@@ -79,10 +87,9 @@ class universal_chat_store(context :Context, factory:SQLiteDatabase.CursorFactor
         // inside the query you should give allways space before and after comma
         val query = ("CREATE TABLE "+ TABLE_NAME_UNIVERSAL_CHAT +" ("
                  + ID_COL +" INTEGER PRIMARY KEY, " + PAIR + " TEXT, " +
-                 MESSAGE_NUMBER + " TEXT, "+ DATA + " TEXT, " +
-                 CATEGORY+" TEXT, "+READ+" TEXT, "+
-                 DELETE+" TEXT, " + TIME_+" TEXT, "+
-                 REMAINDER + " TEXT, "+ LOCK + " TEXT, "+FROM+" TEXT, "+TO+" TEXT, "+ REPLIED_MESSAGE+" TEXT, "+ FORWARDED_MSG +
+                 MESSAGE_NUMBER + " TEXT, "+ DATA + " TEXT, " + NAME + " TEXT, " +
+                 CATEGORY+" TEXT, "+READ+" TEXT, "+ DELETE+" TEXT, " + TIME_+" TEXT, "+
+                 REMAINDER + " TEXT, "+ LOCK + " TEXT, " + FROM+" TEXT, "+TO+" TEXT, "+ REPLIED_MESSAGE+" TEXT, "+ FORWARDED_MSG +
                   " TEXT, "+ STARED_MSG_PROPERTY + " TEXT, "+ EDIT_REWRITE+" TEXT, "+ TAMPLATE_MSG + " TEXT);") // In name of table columns must not be the Keyword sensitive otherwise sql will confuse
 
         val query2 = ("CREATE TABLE "+ TABLE_NAME_PERSON_INFO +" ("
@@ -91,10 +98,10 @@ class universal_chat_store(context :Context, factory:SQLiteDatabase.CursorFactor
                 BLOCKED +" TEXT, " + STARED_MESSAGE +" TEXT, "+ LINK + " TEXT, "+
                 PHOTOS +" TEXT, "+ VIDEOS +" TEXT, "+ STICKER + " TEXT, "+ DOCUMENTS +" TEXT, "+
                 MUTE_ +" TEXT, "+ PIN_CONTACT +" TEXT, "+ LAST_MESSAGE_NUMBER_SEEN +" TEXT, "+
-                REMAINDER_IN_PERSON_INFO +" TEXT, "+ LAST_MESSAGE_ARRIVED +" TEXT, " +GOUP_JOINED+ " TEXT);")
+                REMAINDER_IN_PERSON_INFO +" TEXT, "+ LAST_MESSAGE_ARRIVED +" TEXT, " +GOUP_JOINED+ " TEXT, "+ PRIVATE_CHAT + " TEXT, " + SAVE_TO_GALLERY + " TEXT);")
 
-        val query3 = ("CREATE TABLE "+ MY_ACCOUNT_TABLE +" (" + MY_ACCOUNT_ID+" INTEGER PRIMARY KEY, "
-                + MY_NAME +" TEXT, "+ MY_ABOUT +" TEXT, "+ MY_NUMBER + " TEXT, "+ MY_DP+" TEXT);")
+        val query3 = ("CREATE TABLE "+ MY_ACCOUNT_TABLE +" (" + MY_ACCOUNT_ID+" INTEGER PRIMARY KEY, "+ MY_NAME +
+                       " TEXT, "+ MY_ABOUT +" TEXT, "+ MY_NUMBER + " TEXT, "+ MY_DP+" TEXT);")
 
         db.execSQL(query)
         db.execSQL(query2)
@@ -113,12 +120,12 @@ class universal_chat_store(context :Context, factory:SQLiteDatabase.CursorFactor
                       _time : String,remainder : String ,
                       lock : Boolean , from : Long , to : String ,
                       replied_msg : String, forwarded_msg : String, stared : Boolean,
-                      edit_msg : Boolean , tamplate_ : String
-                      ) : Boolean {   // adding all messages to sql database
+                      edit_msg : Boolean , tamplate_ : String , name_to : String) : Boolean {   // adding all messages to sql database
         val values = ContentValues()
         values.put(PAIR,pair)
         values.put(MESSAGE_NUMBER,msg_num)
         values.put(DATA,data)
+        values.put(NAME,name_to)
         values.put(CATEGORY,category_)
         values.put(READ,"${read}")
         values.put(DELETE,_delete)
@@ -139,25 +146,41 @@ class universal_chat_store(context :Context, factory:SQLiteDatabase.CursorFactor
         try{
             // take the index of row of saved message
              db.insert(TABLE_NAME_UNIVERSAL_CHAT,null,values)
-             db.close()
-             Log.d("Saving data pairs>>>",pair)
              status = true
-        } catch(e : Error) {
+
+            Log.d("","SSSSSSSSSAVE message : ${name_to} & messag_number : ${msg_num} & message is : ${data}")
+            if(msg_num!="1"){      // Now also updating the last message to the persons info table
+                val DB = this.writableDatabase
+                val sql_string = "UPDATE ${TABLE_NAME_PERSON_INFO} SET ${LAST_MESSAGE_ARRIVED}=('${data}') WHERE ${NUMBER_}='${to}';"
+                DB.execSQL(sql_string)
+                DB.close()
+            }
+            if(msg_num=="1"){     // first time saving the message in sqlite database  into the person info  datanase part
+                save_person_info(name_to,to,"","","",false,false,"","","","","","",
+                    false,false,0,"","",false,true)
+               // Now to saving the person array to the arraylist in MainActivity file
+            }
+        }
+        catch(e : Error){
             status = false
         }
-      return status
+        db.close()
+        return status
     }
 
 
-    fun get_messages(pair : String) : ArrayList<universal_model.one_chat_property>{
+    // if operator="message" then all messages will collect
+    // if operator="star" then star_msg will return
+    // if operator="remainder"
+
+    fun get_messages(pair : String , operator_: String) : ArrayList<universal_model.one_chat_property>{
         // the index_str is ()_()_()_()_() form
 
         val db = this.readableDatabase
         val _store : ArrayList<universal_model.one_chat_property> = ArrayList<universal_model.one_chat_property>()
 
-
         var msg_num : String
-        var data : String
+        var data : String = ""
         var category_ : String
         var read : Boolean
         var _delete : String
@@ -172,14 +195,21 @@ class universal_chat_store(context :Context, factory:SQLiteDatabase.CursorFactor
         var replay_msg : String
         var forward_msg : String
         var template : String
+        var _name : String
 
 
             try {
-                val cursor : Cursor = db.rawQuery("SELECT * FROM ${TABLE_NAME_UNIVERSAL_CHAT};", null)
-                Log.d("Size of cursor?????","${cursor.count}")
+                var str : String = "SELECT * FROM $TABLE_NAME_UNIVERSAL_CHAT WHERE $PAIR='$pair';"  // for message selections as default
+                if(operator_=="star"){
+                    str = "SELECT * FROM $TABLE_NAME_UNIVERSAL_CHAT WHERE $STARED_MSG_PROPERTY='true';"
+                }
+                if(operator_=="remainder"){
+                    str = "SELECT * FROM $TABLE_NAME_UNIVERSAL_CHAT WHERE $REMAINDER!='none';"
+                }
+                val cursor : Cursor = db.rawQuery(str,null)
                 if(cursor.count>0){
                     cursor.moveToFirst()
-                      do {
+                    do {
                           msg_num =  cursor.getString(cursor.getColumnIndexOrThrow(MESSAGE_NUMBER))
                           pair_ = cursor.getString(cursor.getColumnIndexOrThrow(PAIR))
                           category_ = cursor.getString(cursor.getColumnIndexOrThrow(CATEGORY))
@@ -196,37 +226,23 @@ class universal_chat_store(context :Context, factory:SQLiteDatabase.CursorFactor
                           replay_msg = cursor.getString(cursor.getColumnIndexOrThrow(REPLIED_MESSAGE))
                           forward_msg = cursor.getString(cursor.getColumnIndexOrThrow(FORWARDED_MSG))
                           template = cursor.getString(cursor.getColumnIndexOrThrow(TAMPLATE_MSG))
+                          _name = cursor.getString(cursor.getColumnIndexOrThrow(NAME))
 
-                          if(pair_== pair) {      // this will save the message property from the database to show
-                              _store.add(universal_model.one_chat_property(
-                                      msg_num,
-                                      data,
-                                      category_,
-                                      read,
-                                      _delete,
-                                      _time,
-                                      edit_msg,
-                                      star_msg,
-                                      template,
-                                      remainder,
-                                      lock,
-                                      from,
-                                      to,
-                                      replay_msg,
-                                      forward_msg ) )
-                          Log.d("|||||||||msg_number :","${msg_num}")
-                          Log.d("|||||||||msg_number :","as remiander :${remainder}") // showing to the screen the status of remainder iof the databse
-                      }
-                    } while(cursor.moveToNext())
-                }
-                db.close()
-            }
+                        Log.d("","gettttttting message of name:${_name} & message:${data} pair_db=${pair_} & provided_pair=${pair} & template:${template}")
+
+//        if(pair_ == pair){      // this will save the message property from the database to show
+        _store.add(universal_model.one_chat_property(pair, _name, msg_num, data, category_, read, _delete, _time, edit_msg, star_msg, template, remainder, lock, from, to, replay_msg, forward_msg))
+//        }
+        } while(cursor.moveToNext())
+        }
+            db.close()
+        }
+
             catch (e: Error) {
                 println("error in querying the database")
             }
       return  _store
     }
-
 
     fun save_person_info( name : String,
                           _number: String,
@@ -245,7 +261,10 @@ class universal_chat_store(context :Context, factory:SQLiteDatabase.CursorFactor
                           pin_contact : Boolean,
                           last_message_seen_number : Int,
                           remainder_chat_indexes : String,
-                          last_message_arrived : String) : Boolean {  // this data will directly bring from server
+                          last_message_arrived : String,
+                          private_chats : Boolean,
+                          save_to_gallery : Boolean
+                          ) : Boolean {  // this data will directly bring from server
         val values = ContentValues()
         values.put(CONTACT_NAME,"${name}")
         values.put(NUMBER_,"${_number}")
@@ -265,20 +284,45 @@ class universal_chat_store(context :Context, factory:SQLiteDatabase.CursorFactor
         values.put(LAST_MESSAGE_NUMBER_SEEN,"${last_message_seen_number}")
         values.put(REMAINDER_IN_PERSON_INFO,remainder_chat_indexes)
         values.put(LAST_MESSAGE_ARRIVED,last_message_arrived)
+        values.put(PRIVATE_CHAT,"$private_chats")
+        values.put(SAVE_TO_GALLERY,"$save_to_gallery")
 
         val db = this.writableDatabase     // accessing database for writting data
         try{
             db.insert(TABLE_NAME_PERSON_INFO,null,values)
-            db.close()
             return  true
-            Log.d("|||||||||||Person ","Information saved")
         } catch(e : Exception) {
-            Log.d(">>>>>Error in saving","names in person_info db")
             return false
         }
+        db.close()
     }
 
+    fun get_persons_info(person_number : String) : persons_info_last_msg{
+        val db = this.readableDatabase
+        var dp = ""
+        var private_chat : String = ""
+        var store : persons_info_last_msg = persons_info_last_msg("",false,true)
+        var save_to_gallery_ = ""
+        try {
+            val cursor : Cursor = db.rawQuery("SELECT * FROM ${TABLE_NAME_PERSON_INFO} WHERE $NUMBER_='$person_number';", null)
+            if(cursor.count>0){
+                cursor.moveToFirst()
+                do {
+                     dp = cursor.getString(cursor.getColumnIndexOrThrow(DP))
+                     private_chat = cursor.getString(cursor.getColumnIndexOrThrow(PRIVATE_CHAT))
+                     save_to_gallery_ = cursor.getString(cursor.getColumnIndexOrThrow(SAVE_TO_GALLERY))     // permission to save gallery
+                    /* get persons all information */
 
+                    store = persons_info_last_msg(dp,private_chat.toBoolean(),save_to_gallery_.toBoolean())
+                } while (cursor.moveToNext())
+            }
+            db.close()
+
+        } catch ( e : Exception) {
+            Log.d("?????????Error in ","searching name in table")
+        }
+      return store
+    }
 
     // this will getback all the contacts that you chat with in past or trying to chat with -> direct connections to home page
     fun get_past_used_contact() : ArrayList<universal_model.front_contact_msg>{
@@ -290,7 +334,6 @@ class universal_chat_store(context :Context, factory:SQLiteDatabase.CursorFactor
 
         try {
             val cursor : Cursor = db.rawQuery("SELECT * FROM ${TABLE_NAME_PERSON_INFO};", null)
-            Log.d("Size of cursor?????","???${cursor.count}")
             if(cursor.count>0){
                 cursor.moveToFirst()
                 do {
@@ -299,7 +342,6 @@ class universal_chat_store(context :Context, factory:SQLiteDatabase.CursorFactor
                     number_ = cursor.getString(cursor.getColumnIndexOrThrow(NUMBER_))
 
                     store.add(universal_model.front_contact_msg(check_name,last_msg,"3:00pm",number_))
-                    Log.d("@@@@@@name:${check_name}","${last_msg}")
                 } while (cursor.moveToNext())
             }
             db.close()
@@ -311,7 +353,7 @@ class universal_chat_store(context :Context, factory:SQLiteDatabase.CursorFactor
     }
 
     // one time settings for the others person
-    fun update_user_settings(operators: String, value : String, contact_number: String){
+    fun update_persons_info(operators: String, value : String, contact_number: String){
 //        UPDATE ORDERTABLE SET QUANTITY = (INSERT VALUE OF YOUR EDIT TEXT) WHERE NAME =   'Order2'
 
         try {
@@ -320,42 +362,52 @@ class universal_chat_store(context :Context, factory:SQLiteDatabase.CursorFactor
             var sql_query = ""
             if (operators == "mute") {
                 sql_query =
-                    "UPDATE ${TABLE_NAME_PERSON_INFO} SET ${MUTE_}='${value}' WHERE ${NUMBER_}=${contact_number}"
+                    "UPDATE ${TABLE_NAME_PERSON_INFO} SET ${MUTE_}='${value}' WHERE ${NUMBER_}=${contact_number};"
                 DB.execSQL(sql_query)
             }
             if (operators == "about") {
                 sql_query =
-                    "UPDATE ${TABLE_NAME_PERSON_INFO} SET ${ABOUT}='${value}' WHERE ${NUMBER_}=${contact_number}"
+                    "UPDATE ${TABLE_NAME_PERSON_INFO} SET ${ABOUT}='${value}' WHERE ${NUMBER_}=${contact_number};"
                 DB.execSQL(sql_query)
             }
             if (operators == "wallpaper") {
                 sql_query =
-                    "UPDATE ${TABLE_NAME_PERSON_INFO} SET ${WALLPAPER}='${value}' WHERE ${NUMBER_}=${contact_number}"
+                    "UPDATE ${TABLE_NAME_PERSON_INFO} SET ${WALLPAPER}='${value}' WHERE ${NUMBER_}=${contact_number};"
                 DB.execSQL(sql_query)
             }
             if (operators == "archived") {
                 sql_query =
-                    "UPDATE ${TABLE_NAME_PERSON_INFO} SET ${ARCHIVED}='${value}' WHERE ${NUMBER_}=${contact_number}"
+                    "UPDATE ${TABLE_NAME_PERSON_INFO} SET ${ARCHIVED}='${value}' WHERE ${NUMBER_}=${contact_number};"
                 DB.execSQL(sql_query)
             }
             if (operators == "blocked") {
                 sql_query =
-                    "UPDATE ${TABLE_NAME_PERSON_INFO} SET ${BLOCKED}='${value}' WHERE ${NUMBER_}=${contact_number}"
+                    "UPDATE ${TABLE_NAME_PERSON_INFO} SET ${BLOCKED}='${value}' WHERE ${NUMBER_}=${contact_number};"
                 DB.execSQL(sql_query)
             }
             if (operators == "pinned") {
                 sql_query =
-                    "UPDATE ${TABLE_NAME_PERSON_INFO} SET ${PIN_CONTACT}='${value}' WHERE ${NUMBER_}=${contact_number}"
+                    "UPDATE ${TABLE_NAME_PERSON_INFO} SET ${PIN_CONTACT}='${value}' WHERE ${NUMBER_}=${contact_number};"
                 DB.execSQL(sql_query)
             }
             if (operators == "last_time_seen_message") {
-                sql_query = "UPDATE ${TABLE_NAME_PERSON_INFO} SET ${LAST_MESSAGE_NUMBER_SEEN}='${value}' WHERE ${NUMBER_}=${contact_number}"
+                sql_query = "UPDATE ${TABLE_NAME_PERSON_INFO} SET ${LAST_MESSAGE_NUMBER_SEEN}='${value}' WHERE ${NUMBER_}=${contact_number};"
                 DB.execSQL(sql_query)
             }
             if (operators == "last_msg_arrived") {
-                sql_query = "UPDATE ${TABLE_NAME_PERSON_INFO} SET ${LAST_MESSAGE_ARRIVED}='${value}' WHERE ${NUMBER_}=${contact_number}"
+                sql_query = "UPDATE ${TABLE_NAME_PERSON_INFO} SET ${LAST_MESSAGE_ARRIVED}='${value}' WHERE ${NUMBER_}=${contact_number};"
                 DB.execSQL(sql_query)
                 Log.d("!!!!!!!!!!!!!", "updated lst_msg")
+            }
+            if(operators=="private_chat"){
+                sql_query = "UPDATE ${TABLE_NAME_PERSON_INFO} SET ${PRIVATE_CHAT}='${value}' WHERE ${NUMBER_}=${contact_number};"
+                DB.execSQL(sql_query)
+                Log.d("","uuuuuuuuuuupdaing private chat to:$value")
+            }
+            if(operators=="save_to_gallery"){
+                sql_query = "UPDATE ${TABLE_NAME_PERSON_INFO} SET ${SAVE_TO_GALLERY}='${value}' WHERE ${NUMBER_}=${contact_number};"
+                DB.execSQL(sql_query)
+                Log.d("","ggggggggellery save_to_gallery to:$value")
             }
               DB.close()
         }  catch (e : Exception){
@@ -383,24 +435,18 @@ class universal_chat_store(context :Context, factory:SQLiteDatabase.CursorFactor
         db.close()
     }
 
-    // saving the details of My account
-    fun save_to_my_account(operators : String , value : String){
-         val db = this.writableDatabase
+    // saving the details of My account for the first time
+    fun save_to_my_account(name : String ,
+                           dp_path : String,
+                           about : String,
+                           number_ : String) {
+        val db = this.writableDatabase
         val vl = ContentValues()
 
-        if(operators=="name"){
-            Log.d("!!!!!!saving name","my account")
-            vl.put(MY_NAME,value)
-        }
-        if(operators=="number"){
-            vl.put(MY_NUMBER,value)
-        }
-        if(operators=="about"){
-            vl.put(MY_ABOUT,value)
-        }
-        if(operators=="dp"){
-            vl.put(MY_DP,value)
-        }
+            vl.put(MY_NAME,name)
+            vl.put(MY_NUMBER,number_)
+            vl.put(MY_ABOUT,about)
+            vl.put(MY_DP,dp_path)
 
         db.insert(MY_ACCOUNT_TABLE,null,vl)
         db.close()
@@ -428,12 +474,10 @@ class universal_chat_store(context :Context, factory:SQLiteDatabase.CursorFactor
                     Log.d("@@@@@@MY_name_get:${name_}","${about}")
                 } while (cursor.moveToNext())
             }
-
-            Log.d("||||||||| name:","${name_}")
-            Log.d("||||||||| about:","${about}")
         }catch (e: Exception){
            Log.d("error in finding",": account")
         }
+        db.close()
        return  store
     }
 
@@ -458,27 +502,179 @@ class universal_chat_store(context :Context, factory:SQLiteDatabase.CursorFactor
         db.close()
     }
 
-    fun update_one_chat_property(operators_ : String, msg_numbers : ArrayList<String> , new_value : String ){
+    fun update_one_chat_property(operators_ : String, pair_ : String , msg_numbers : ArrayList<String> , new_value : String){
       // the  correct form of the sql update in the database is : UPDATE TABLE_NAME SET COLUMN = ('${new_value}') WHERE ${another_column}='${value};'
         val db = this.writableDatabase
-        var msg_number = 0
         var sql_query = ""
-        for(i in msg_numbers) {
-            if (operators_ == "star") {
-                sql_query = "UPDATE ${TABLE_NAME_UNIVERSAL_CHAT} SET ${STARED_MSG_PROPERTY}=('${new_value}') WHERE ${MESSAGE_NUMBER}='${i}';"
-                  Log.d("^^^^star msg_num:","${i},value ${new_value}")
+        for(i in msg_numbers){
+            if (operators_ == "star"){           // till now this is correct
+                sql_query = "UPDATE ${TABLE_NAME_UNIVERSAL_CHAT} SET ${STARED_MSG_PROPERTY}=('${new_value}') WHERE ${PAIR}='${pair_}' AND ${MESSAGE_NUMBER}='${i}';"
+                Log.d("^^^^star msg_num:","${i},value ${new_value}")
                 db.execSQL(sql_query)
             }
-            if (operators_ == "remainder") {
-                sql_query = "UPDATE ${TABLE_NAME_UNIVERSAL_CHAT} SET ${REMAINDER}=('${new_value}') WHERE ${MESSAGE_NUMBER}='${i}';"
-                Log.d("@@@@@@@@@remiander","activated value :${new_value}")
+            if (operators_ == "remainder"){
+                sql_query = "UPDATE ${TABLE_NAME_UNIVERSAL_CHAT} SET ${REMAINDER}=('${new_value}') WHERE ${PAIR}='${pair_}' AND ${MESSAGE_NUMBER}='${i}';"
+                Log.d("@@@@@@@@remiander","activated value :${new_value}")
                 db.execSQL(sql_query)
             }
-            if (operators_ == "share_block") {
-                sql_query = "UPDATE ${TABLE_NAME_UNIVERSAL_CHAT} SET ${LOCK} = ('${new_value}') WHERE ${MESSAGE_NUMBER}='${i}';"
+            if (operators_ == "lock_message"){
+                sql_query = "UPDATE ${TABLE_NAME_UNIVERSAL_CHAT} SET ${LOCK}=('${new_value}') WHERE ${PAIR}='${pair_}' AND ${MESSAGE_NUMBER}='${i}';"
                 db.execSQL(sql_query)
+                Log.d("^^^^lock_msg_num","${i},value ${new_value}")
             }
         }
         db.close()
     }
- }
+
+    fun delete_specific_message_number(msg_number : String){
+        val DB = this.writableDatabase
+        val sql_string = "DELETE FROM ${TABLE_NAME_UNIVERSAL_CHAT} WHERE ${MESSAGE_NUMBER}='${msg_number}';"
+        DB.execSQL(sql_string)
+        DB.close()
+    }
+
+    fun forward_funciton(messages_to_save : ArrayList<universal_model.one_chat_property> , pairs : ArrayList<pair_to_model>){
+        val pair_last_msg : ArrayList<container> = ArrayList<container>()
+        val db = this.readableDatabase
+        val cursor: Cursor = db.rawQuery("SELECT * FROM ${TABLE_NAME_UNIVERSAL_CHAT};", null)
+        Log.d("Size of cursor?????","${cursor.count}")
+        var msg_num = ""
+        var pair = ""
+
+        if (cursor.count > 0) {
+            cursor.moveToFirst()
+            do{
+                pair= cursor.getString(cursor.getColumnIndexOrThrow(PAIR))
+                msg_num = cursor.getString(cursor.getColumnIndexOrThrow(MESSAGE_NUMBER))
+
+                for(pp in pairs){
+                    if(pp.pairs_==pair){
+                        pair_last_msg.add(container(pair,msg_num.toInt(),pp.name_,pp._number))
+                        Log.d("MMMMMMMMMsg","number is ${msg_num}")
+                } }
+            } while (cursor.moveToNext())
+        }
+
+        db.close()
+        val functions_ = filtering_last_msg()
+        val message_store : ArrayList<universal_model.one_chat_property> = functions_.filter(pairs , pair_last_msg , messages_to_save)
+
+        for(l in message_store){    // for every one loop this saves to the database
+             Log.d("","iiiiiiiiinside database file the message is:${l.data}")
+             save_message(l.pair, l.msg_num, l.data, l.category, l.read, l._delete, l.time_, l.remainder, l.lock, l.from, l.to.toString(),l.replied_msg, l.forwarded_msg, l.stared, l.edit_rewrite, l.template,l.name)
+
+             Log.d("ssssssssaving", "data is $l")
+             }
+        }
+
+
+    // for template update in data base
+    /*  if operator is comment then datatype of comment must be comment */
+    fun update_reaction_template(operator_ : String , new_value : String , pair_: String , msg_number: String){
+
+        if(operator_=="you_liked" || operator_=="you_comment"){       // this simply update the new edited value
+            val DB = this.writableDatabase
+            val new_data = "$new_value"
+            val sql_string = "UPDATE ${TABLE_NAME_UNIVERSAL_CHAT} SET ${DATA}=('${new_data}') WHERE ${PAIR}='${pair_}' AND ${MESSAGE_NUMBER}='$msg_number';"
+            DB.execSQL(sql_string)
+            DB.close()
+            Log.d("","pppppppupdating the new value of reacitons template of:$new_value")
+        }
+
+
+        // this comes from the server
+        if(operator_!="you_liked"){
+            var new_data: String = ""
+            val db = this.readableDatabase
+            var _string = "SELECT $DATA FROM $TABLE_NAME_UNIVERSAL_CHAT WHERE $PAIR='$pair_' AND $MESSAGE_NUMBER='$msg_number';"
+            val cursor: Cursor = db.rawQuery(_string, null)
+            var template_data : String = ""
+            if (cursor.count > 0) {
+                cursor.moveToFirst()
+                do {
+                    template_data = cursor.getString(cursor.getColumnIndexOrThrow(DATA))
+                } while (cursor.moveToNext())
+            }
+            db.close()
+
+            var data: reaction_store_model = mapper.readValue<reaction_store_model>(template_data)    // parsing data that arrived from the database
+
+            if (operator_ == "new_comment_server"){                                          // whenever new comment is posted into one topic
+                val comment_: universal_model.one_chat_property = mapper.readValue<universal_model.one_chat_property>(new_value)      // new comment that should be posted is parsed here
+                data.total_comment.add(comment_)
+                new_data = mapper.writeValueAsString(data)       // this is complitly updated data
+            }
+            if (operator_ == "new_like_server") {              // whenever server pulls the total like of topic
+                 var total_ = data.total_like
+                 total_++
+                 data.total_like = total_
+                new_data = mapper.writeValueAsString(data)
+            }
+
+            val DB = this.writableDatabase
+            val sql_string = "UPDATE ${TABLE_NAME_UNIVERSAL_CHAT} SET ${DATA}=('${new_data}') WHERE ${PAIR}='${pair_}' AND ${MESSAGE_NUMBER}='$msg_number';"
+            DB.execSQL(sql_string)
+            DB.close()
+
+            Log.d("", "nnnnnnnnnnnnnew data from storing reaction to update is:${new_data}")
+        }
+    }
+
+
+    // update the voting template
+    fun update_voting_template(new_value : String , pair_ : String , msg_number: String){
+//        var new_data : String = ""
+//        val db = this.readableDatabase
+//        var _string = "SELECT $DATA FROM $TABLE_NAME_UNIVERSAL_CHAT WHERE $PAIR='$pair_' AND $MESSAGE_NUMBER='$msg_number';"
+//        val cursor : Cursor = db.rawQuery(_string,null)
+//        var template_data : String = ""
+//        if(cursor.count>0){
+//            cursor.moveToFirst()
+//            do{
+//                template_data = cursor.getString(cursor.getColumnIndexOrThrow(DATA))
+//            } while (cursor.moveToNext())
+//        }
+//        db.close()
+//        val vote_data : voting_template = mapper.readValue<voting_template>(template_data)
+//
+//
+//            vote_data.your_vote = new_value.toInt()    // which vote you have given it is recorded
+//            var vote_total : Int = 0
+//
+//            if(new_value=="0"){         // you didn't give any vote
+//                vote_data.your_vote = 0
+//            }
+//
+//            if(new_value=="1"){        // up_vote
+//                vote_total = vote_data.total_up_vote
+//                if(vote_data.your_vote==2){
+//                    var num_ = vote_data.total_down_vote
+//                    num_--
+//                    vote_data.total_down_vote = num_
+//                }
+//                vote_data.your_vote = 1
+//                vote_total++
+//                vote_data.total_up_vote = vote_total
+//            }
+//
+//            if(new_value=="2"){        // down_vote
+//                vote_total = vote_data.total_down_vote
+//                if(vote_data.your_vote==1){
+//                   var num_ = vote_data.total_up_vote
+//                   num_--
+//                   vote_data.total_up_vote = num_
+//                }
+//                vote_data.your_vote = 2
+//                vote_total++
+//                vote_data.total_down_vote = vote_total
+//            }
+//
+//        new_data = mapper.writeValueAsString(vote_data)
+//
+        val DB = this.writableDatabase
+        val sql_query = "UPDATE ${TABLE_NAME_UNIVERSAL_CHAT} SET ${DATA}=('${new_value}') WHERE ${PAIR}='${pair_}' AND ${MESSAGE_NUMBER}='${msg_number}';"
+        DB.execSQL(sql_query)
+        DB.close()
+    }
+
+}
