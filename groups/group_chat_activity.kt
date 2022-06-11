@@ -83,6 +83,8 @@ class group_chat_activity : AppCompatActivity() , OnContactClickListener , Actio
     private lateinit var edit_text_view_layout : RelativeLayout
     private lateinit var replying_layout_id : RelativeLayout
     private lateinit var cancel_edit_text : ImageButton
+    private var EDIT_MESSAGE : Boolean = false
+    private var POSITION_CONTAINER = 0                  // if the edit text is selected then this contains the position of edit
     var PICK_IMAGE : String = ""
     private val IMAGE_CHOOSE = 1000
     private val PERMISSION_CODE = 1001
@@ -117,7 +119,7 @@ class group_chat_activity : AppCompatActivity() , OnContactClickListener , Actio
         val group_private = intent.getStringExtra("+private_chat").toBoolean()
 
 
-        //  settings for private chats
+        // settings for private chats
         PRIVATE_CHAT_ = group_private
         val lock_show = findViewById<ImageView>(R.id.lock_pair_chat_id)
         if(PRIVATE_CHAT_== true)window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE) // for restricting the screenshoot the screen
@@ -131,19 +133,19 @@ class group_chat_activity : AppCompatActivity() , OnContactClickListener , Actio
             all_group_chats = DB.get_group_messages(group_number)
             val ss = all_group_chats.size
 
-            if(ss>0)TOTAL_MESSAGE = all_group_chats[ss-1].msg_num.toInt()       // copy the last message number of the group message
+            if(ss>0){
+                var ff = all_group_chats[ss-1].msg_num
+                TOTAL_MESSAGE = ff.toInt()
+            }       // copy the last message number of the group message
 
-            handler.post {
+            handler.post{
                 message_list_show.layoutManager = LinearLayoutManager(this)
                 message_list_show.setHasFixedSize(true)
-                adapter = group_chat_adapter(this, this)
+                adapter = group_chat_adapter(this,this)
                 message_list_show.adapter = adapter
 
-                for(i in all_group_chats){
-                    initiate_message_me(i)
-                }
                 val final_time = System.currentTimeMillis()
-                Log.d("","FFFFFFFFFFFFFinal time after adapting is:${final_time}")
+                Log.d("","FFFFFFFFFFinal time after adapting is:${final_time}")
                 // this is for long pressed detections in the group chat
                 tracker = SelectionTracker.Builder<Long>(
                     "mySelection",
@@ -151,7 +153,7 @@ class group_chat_activity : AppCompatActivity() , OnContactClickListener , Actio
                     StableIdKeyProvider(message_list_show),
                     Items_detail_look_up(message_list_show),
                     StorageStrategy.createLongStorage()).withSelectionPredicate(SelectionPredicates.createSelectAnything()).build()
-                   adapter.tracker = tracker
+                    adapter.tracker = tracker
 
                 //    making the tracker for selections
                 tracker?.addObserver(object : SelectionTracker.SelectionObserver<Long>(){
@@ -174,7 +176,8 @@ class group_chat_activity : AppCompatActivity() , OnContactClickListener , Actio
 
                 // Replay layout right swipe of message
                 // for message replay layout
-                val message_swipe_controller = MessageSwipeController(this,object: SwipeControllerActions {
+                val message_swipe_controller = MessageSwipeController(this,object : SwipeControllerActions{
+
                     override fun showReplyUI(position : Int){             // this will give the recycle View item positions number
                         edit_text_view_layout.visibility = View.GONE
                         SELECTED_REPLAY_MESSAGE = position
@@ -216,6 +219,8 @@ class group_chat_activity : AppCompatActivity() , OnContactClickListener , Actio
                 // only text messages are editable not other template types of messages or messages
                 val edit_message = swipe_to_edit(this,object : SwipeControllerActions{
                     override fun showReplyUI(position: Int){
+                        EDIT_MESSAGE = true
+                        POSITION_CONTAINER = position
                         replying_layout_id.visibility = View.GONE
                         if(all_group_chats[position].category=="g_chat"){
 
@@ -239,6 +244,8 @@ class group_chat_activity : AppCompatActivity() , OnContactClickListener , Actio
                 })
                 val editing_messages = ItemTouchHelper(edit_message)
                 editing_messages.attachToRecyclerView(message_list_show)
+
+                initiate_message_me(all_group_chats)
             }
         })
         thread.start()
@@ -261,24 +268,44 @@ class group_chat_activity : AppCompatActivity() , OnContactClickListener , Actio
             var msg_data = input_text.text.toString()
             val read_people = HashMap<Int,String>()                      // this actually stores the persons number and time of message seen
             val read_str = mapper.writeValueAsString(read_people)        // as this message is sended by you so this have to store the all seen people
+            /* Delivered to people is contained at the Hash Map as same variable with read_str */
+
             if(SELECTED_REPLAY_MESSAGE!=-1){
                 val replay_ = replay_data_model(SELECTED_REPLAY_TEXT,"$SELECTED_REPLAY_MESSAGE",msg_data)
                 msg_data = mapper.writeValueAsString(replay_)
                 replay_status = "yes"
             }
-            val send_data = group_message_model("","","",msg_data,"g_chat",read_str,"",
-                                     "none",time_, false,false,"none","none", MY_NUMBER,replay_status,"none")
 
-            all_group_chats.add(send_data)
-            initiate_message_me(send_data)
-            input_text.setText("")
-            val DB = universal_chat_store(this,null)
-            val thread = Thread({                // save message to table database
-                DB.save_group_message(group_name,group_number,"$TOTAL_MESSAGE",msg_data,"g_chat",read_str,"",
-                                      "none",time_, false,false,"none","none", MY_NUMBER,replay_status,"none")
-            })
-            thread.start()
-            hideReplayLayout()
+            if(EDIT_MESSAGE==false){
+                val send_data = group_message_model("", "", "", msg_data, "g_chat", read_str, "","none", time_,
+                                                     false, false, "none", "none", MY_NUMBER, replay_status,"none")
+
+                all_group_chats.add(send_data)
+                initiate_message_me(all_group_chats)
+                input_text.setText("")
+                val DB = universal_chat_store(this, null)
+                val thread = Thread({                // save message to table database
+                  DB.save_group_message(group_name, group_number,"$TOTAL_MESSAGE", msg_data, "g_chat", read_str, read_str, "none", time_, false, false, "none", "none", MY_NUMBER, replay_status, "none")
+                })
+                thread.start()
+                hideReplayLayout()
+            }
+
+            // when we edit anu text message
+            if(EDIT_MESSAGE==true){
+                val msg_number = all_group_chats[POSITION_CONTAINER].msg_num
+                val send_data = group_message_model(group_name,group_number,msg_number,msg_data,"g_chat", read_str, read_str,"none", time_, true, false, "none", "none", MY_NUMBER, replay_status,"none")
+               all_group_chats[POSITION_CONTAINER] = send_data
+
+               adapter.update_list("EDIT_REWRITE",mapper.writeValueAsString(send_data),POSITION_CONTAINER)    // sending to the adapter
+
+                val DB = universal_chat_store(this,null)
+                val thread = Thread({
+                    DB.update_group_message("EDIT_REWRITE",group_number,msg_number,msg_data)   // updating only the perticular column
+                })
+                thread.start()
+                cancel_edit_text()
+            }
         }
 
         val attachment : ImageView = findViewById(R.id.options_file_choose_id_)
@@ -287,7 +314,7 @@ class group_chat_activity : AppCompatActivity() , OnContactClickListener , Actio
         }
 
 
-        // cancelling to replay of message
+       // cancelling to replay of message
        cancelButton.setOnClickListener {
            hideReplayLayout()
        }
@@ -295,13 +322,21 @@ class group_chat_activity : AppCompatActivity() , OnContactClickListener , Actio
         // template selections voter and reactions store
        template_select.setOnClickListener {
             selection_template()
-        }
-
-       //  cancelling the edit text layout
-       cancel_edit_text.setOnClickListener {
-           hideReplayLayout()
-           input_text.setText("")
        }
+
+       //  cancelling the edit_text layout
+       cancel_edit_text.setOnClickListener {
+           cancel_edit_text()
+       }
+    }
+
+
+    // cancelling the editext
+    private fun cancel_edit_text(){
+        hideReplayLayout()
+        input_text.setText("")
+        EDIT_MESSAGE = false
+        POSITION_CONTAINER = 0
     }
 
     // for replay layout
@@ -320,8 +355,8 @@ class group_chat_activity : AppCompatActivity() , OnContactClickListener , Actio
         SELECTED_REPLAY_TEXT = ""
     }
 
-    fun initiate_message_me(_data : group_message_model){
-        adapter.setData(_data)
+    fun initiate_message_me(_data : ArrayList<group_message_model>){
+        adapter.setData(_data)                                // this positions is new inserted item in the arraList
         message_list_show.scrollToPosition(adapter.itemCount-1)    // for viewing the last message that is sended
     }
 
@@ -338,8 +373,8 @@ class group_chat_activity : AppCompatActivity() , OnContactClickListener , Actio
                     sheet.setContentView(R.layout.message_details)
                     val show_detail_text = sheet.findViewById<TextView>(R.id.show_detail_text)
                     val seen_time_id = sheet.findViewById<TextView>(R.id.seen_time_id)
-                    show_detail_text!!.setText("${all_group_chats[position].data}")
-                    seen_time_id!!.setText("${all_group_chats[position].read}")         /* this should be the seen time of this message of opposite one */
+                    show_detail_text!!.setText("${all_group_chats!![position].data}")
+                    seen_time_id!!.setText("${all_group_chats!![position].read}")         /* this should be the seen time of this message of opposite one */
                     sheet.show()
                     first_click = 0
                     _used++
@@ -363,9 +398,9 @@ class group_chat_activity : AppCompatActivity() , OnContactClickListener , Actio
         Toast.makeText(this,"You clicked the message position: ${position}",Toast.LENGTH_LONG).show()
     }
 
-    //  #######################################  presshold section ####################
+    //  #################################  presshold section ####################
     // allowing the menu items which one is to visible when
-    override fun onCreateActionMode(mode: ActionMode?, menu: Menu?): Boolean {
+    override fun onCreateActionMode(mode : ActionMode?, menu : Menu?): Boolean {
         mode?.let{
             val inflater : MenuInflater = it.menuInflater
             inflater.inflate(R.menu.presshold_menu,menu)
@@ -381,8 +416,88 @@ class group_chat_activity : AppCompatActivity() , OnContactClickListener , Actio
         return false
     }
 
-    override fun onActionItemClicked(mode: ActionMode?, item: MenuItem?) : Boolean {  // this functions controlled the clicked long pressed functions
-        Toast.makeText(this,"OnActionItemClicked is Activated!!",Toast.LENGTH_LONG).show()
+    override fun onActionItemClicked(mode : ActionMode?, item : MenuItem?) : Boolean {  // this functions controlled the clicked long pressed functions
+
+        when(item?.itemId) {
+
+            R.id.star_function_id -> {
+                var stared_msg_number = 0
+                val DB = universal_chat_store(this, null)
+
+                for(i in selectedPostItems) if(all_group_chats[i.toInt()].stared == true) stared_msg_number++
+
+                if (selectedPostItems.size == stared_msg_number){        // when you want to unstar all selected message
+                    val list_items = "Unstar all ${selectedPostItems.size} messages for me"
+                    val mBuilder = AlertDialog.Builder(this)
+                    mBuilder.setTitle(list_items)
+                    val msg_number: ArrayList<String> = ArrayList<String>()
+
+                    for (i in selectedPostItems) {                        // Always be carefull when you selected the message number take directly from the list individual
+                        val msg_num = all_group_chats[i.toInt()].msg_num
+                        msg_number.add(msg_num)
+                    }
+
+                    mBuilder.setPositiveButton("ok"){ dialogInterface,i ->
+
+                        for(k in selectedPostItems)adapter.update_list("STAR","false",k.toInt())  // updating the adapter for the template
+
+                        Toast.makeText(this,"You unstar all ${selectedPostItems.size} messages",Toast.LENGTH_LONG).show()
+                        val thread = Thread({
+                            for(j in msg_number){
+                                DB.update_group_message("STAR",group_number,j,"false")
+                            }
+                        })
+                        thread.start()
+                        dialogInterface.dismiss()
+                    }
+                    mBuilder.setNeutralButton("Cancel") { dialog, which ->
+                        dialog.cancel()
+                    }
+                    val dd = mBuilder.create()
+                    dd.show()
+                }
+
+                if(selectedPostItems.size != stared_msg_number){   // want to star all the selected messages
+                    val list_items = "Star all ${selectedPostItems.size} messages for me"
+                    val mBuilder = AlertDialog.Builder(this)
+                    mBuilder.setTitle(list_items)
+                    val msg_number : ArrayList<String> = ArrayList<String>()
+                    for (i in selectedPostItems) {                        // Always be carefull when you selected the message number take directly from the list individual
+                        val msg_num = all_group_chats[i.toInt()].msg_num
+                        msg_number.add(msg_num)
+                    }
+                    mBuilder.setPositiveButton("ok"){dialogInterface, i ->
+                        val thread  = Thread({          // updating the database
+                            for(j in msg_number) {
+                                DB.update_group_message("STAR",group_number,j,"true")
+                            }
+                        })
+                        thread.start()
+                        Toast.makeText(this,"Stared messages moved to star folder",Toast.LENGTH_LONG).show()
+                        for(j in selectedPostItems){
+                            Log.d("","nnnnnnnnnow the selected messages numbers are : ${j}")
+                            all_group_chats[j.toInt()].stared = true   // updating the chat store array of Activity
+                        }
+
+//                      initiate_message_me(all_group_chats)
+                        for(k in selectedPostItems){
+                            adapter.update_list("STAR","true",k.toInt())
+                        }
+                        selectedPostItems.clear()
+                        dialogInterface.dismiss()
+                        adapter.tracker?.clearSelection()
+                        actionMode = null
+                    }
+                    mBuilder.setNeutralButton("Cancel"){ dialog, which ->
+                        dialog.cancel()
+                        dialog.dismiss()
+                    }
+                    val dd = mBuilder.create()
+                    dd.show()
+                }
+            }
+
+        }
         return true
     }
 
@@ -397,7 +512,7 @@ class group_chat_activity : AppCompatActivity() , OnContactClickListener , Actio
     //  ######################################################
 
 
-    //############################ Image section ###################
+    //  ############################ Image section ###################
     // now for detecting the url of choosing the image after selections from gallery
     fun color_selection(layout_number : Int){
 
@@ -424,7 +539,7 @@ class group_chat_activity : AppCompatActivity() , OnContactClickListener , Actio
 
         super.onActivityResult(requestCode, resultCode, data)
         if(resultCode == Activity.RESULT_OK && requestCode==IMAGE_CHOOSE){
-            val send_data = ArrayList<group_message_model>()
+//            val send_data = ArrayList<group_message_model>()
             Log.d("","ddddddddExtracted path is:${data!!.data}")
 
             if(data.clipData==null){     // if no photo has been selected from gallery
@@ -442,8 +557,8 @@ class group_chat_activity : AppCompatActivity() , OnContactClickListener , Actio
                 // MAX_SIZE 240000
                 // MAX_SIZE 300000
                 // MAX_SIZE 360000
-                val reduced_bitmap_2: Bitmap = ImageResizer.reduceBitmapSize(full_size_bitmap, 360000)
-                val reduced_bitmap_3: Bitmap = ImageResizer.reduceBitmapSize(full_size_bitmap, 300000)
+                val reduced_bitmap_2 : Bitmap = ImageResizer.reduceBitmapSize(full_size_bitmap,360000)
+                val reduced_bitmap_3 : Bitmap = ImageResizer.reduceBitmapSize(full_size_bitmap,300000)
 
                 val uri_2: String = saveImage(reduced_bitmap_2)
                 val uri_3: String = saveImage(reduced_bitmap_3)
@@ -541,11 +656,10 @@ class group_chat_activity : AppCompatActivity() , OnContactClickListener , Actio
                         val delivered_str = mapper.writeValueAsString(delivered_)
 
                         sheet_.dismiss()
-                        send_data.add(
-                           group_message_model(group_name,group_number,message_number,data_str,"g_i",read_,delivered_str,"none",
-                               time_,false,false,"none","none", MY_NUMBER,"none","none")
-                        )
-                        for(i in send_data)initiate_message_me(i)
+                        all_group_chats.add(group_message_model(group_name,group_number,message_number,data_str,"g_i",read_,delivered_str,"none",
+                               time_,false,false,"none","none", MY_NUMBER,"none","none"))
+
+                        initiate_message_me(all_group_chats)
 
                         TOTAL_SELECT_IMAGE = 0                                   // renewing the number otherwise it will count the previous selected message
                         val DB = universal_chat_store(this, null)
@@ -767,12 +881,12 @@ class group_chat_activity : AppCompatActivity() , OnContactClickListener , Actio
                     thread.start()
                     db.close()
                 }
-                initiate_message_me(store)
+                all_group_chats.add(store)
+                initiate_message_me(all_group_chats)
                 sheet.cancel()
             }
         }
     }
-
 
     //################################## functions for editable text messages ##############
     private fun edit_message_show(){
