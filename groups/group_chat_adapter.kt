@@ -12,6 +12,7 @@ import androidx.appcompat.widget.AppCompatImageView
 import androidx.appcompat.widget.AppCompatTextView
 import androidx.recyclerview.selection.ItemDetailsLookup
 import androidx.recyclerview.selection.SelectionTracker
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.example.database_part_3.Image_View.FullScreenImageActivity
 import com.example.database_part_3.R
@@ -23,18 +24,19 @@ import com.example.database_part_3.model.*
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.squareup.picasso.Picasso
-import java.util.ArrayList
+import com.example.database_part_3.message_holder.MY_NUMBER_LONG
 
 
 val MY_NUMBER : Long = 6900529357
 class group_chat_adapter ( private val context_ : Context,
-                          private val onContactClickListener: OnContactClickListener )
-      : RecyclerView.Adapter<group_chat_adapter.DataAdapterViewHolder>(){
-    var adapterData = ArrayList<group_message_model>()
+                          private val onContactClickListener: OnContactClickListener ):
+       RecyclerView.Adapter<group_chat_adapter.DataAdapterViewHolder>(){
+
     var tracker : SelectionTracker<Long> ? = null
     var DISPLAY_STATUS = 0                // this will decide which layout should be bind in binding holder
     private val mapper = jacksonObjectMapper()
     private var LOVED_REACTION_TEMPLATE : Boolean = false
+    private var adapterData = ArrayList<group_message_model>()
 
     init {
         setHasStableIds(true)
@@ -55,12 +57,23 @@ class group_chat_adapter ( private val context_ : Context,
         val STICKER_FROM_OTHER = 11
     }
 
-    // function that takes the input messages from the appcompactActivity
-    fun setData(data : group_message_model){
-        adapterData.add(data)
+    // function that takes the input messages from the appcompatActivity
+    fun setData(data : ArrayList<group_message_model>){      //  we should always give the List in parameter
+        adapterData = data
         notifyDataSetChanged()
     }
 
+
+    // functions for updating the new adapterData
+    fun update_list(operator_ : String , data : String , position : Int){    // position is selected positions to update the list
+        if(operator_=="STAR"){
+            adapterData[position].stared = data.toBoolean()
+        }
+        if(operator_=="EDIT_REWRITE") {
+            adapterData[position] = mapper.readValue<group_message_model>(data)
+        }
+      notifyItemChanged(position)
+    }
 
     // sending the view types for he each message
     override fun getItemViewType(position: Int): Int {
@@ -102,7 +115,7 @@ class group_chat_adapter ( private val context_ : Context,
 
     override fun onBindViewHolder(holder : DataAdapterViewHolder,position: Int){
         val supply_data : group_message_model = adapterData[position]
-        holder.itemView.setOnClickListener {
+        holder.itemView.setOnClickListener{
             onContactClickListener.onContactClickListener(position)
         }
         tracker?.let{
@@ -119,7 +132,6 @@ class group_chat_adapter ( private val context_ : Context,
         fun bind_msg_me(dataModel : group_message_model){
             val msg_view = itemView.findViewById<TextView>(R.id.txtMyMessage_me)
             msg_view.setText(dataModel.data)
-            Log.d("","sssssssset text in my message is:${dataModel.data}")
             // controlling visibility
             val lock_ = itemView.findViewById<ImageView>(R.id.lock_showing_msg_id_)
             lock_.visibility = View.GONE
@@ -128,14 +140,31 @@ class group_chat_adapter ( private val context_ : Context,
                 val star_msg = itemView.findViewById<ImageView>(R.id.stared_msg_id_message)
                 star_msg.visibility = View.VISIBLE
             }
+            if(dataModel.stared==false){
+                val star_msg = itemView.findViewById<ImageView>(R.id.stared_msg_id_message)
+                star_msg.visibility = View.GONE
+            }
+
+            // For the visibility of the any icon you have to fit both the visible and gone part
             if(dataModel.edit_rewrite==true){
+                Log.d("","EEEEEEEEEEEEdit and rewrite of msg_num :${dataModel.msg_num}")
                 val edit_view = itemView.findViewById<ImageView>(R.id.edit_msg_id_)
                 edit_view.visibility = View.VISIBLE
             }
+            if(dataModel.edit_rewrite==false){
+                val edit_view = itemView.findViewById<ImageView>(R.id.edit_msg_id_)
+                edit_view.visibility = View.GONE
+            }
+
             if(dataModel.remainder!="none"){
                 val remainder_ = itemView.findViewById<ImageView>(R.id.remainder_show_in_chat_)
                 remainder_.visibility = View.VISIBLE
             }
+            if(dataModel.remainder=="none"){
+                val remainder_ = itemView.findViewById<ImageView>(R.id.remainder_show_in_chat_)
+                remainder_.visibility = View.GONE
+            }
+
         }
 
         fun bind_image_me(dataModel : group_message_model){
@@ -180,8 +209,8 @@ class group_chat_adapter ( private val context_ : Context,
             val total_comment_number = itemView.findViewById<AppCompatTextView>(R.id.total_number_comment_)
             total_comment_number.text = data_.total_comment.size.toString()
 
-            val like_icon : ImageView = itemView.findViewById(R.id.like_icon_id_)
-            val comment_icon : ImageView = itemView.findViewById<AppCompatImageView>(R.id.comment_icon_id)
+            val like_icon = itemView.findViewById<ImageView>(R.id.like_icon_id_)
+            val comment_icon = itemView.findViewById<ImageView>(R.id.comment_icon_id)
 
             like_icon.setOnClickListener{         //when clicked to the love icon
                 var t=0
@@ -234,7 +263,7 @@ class group_chat_adapter ( private val context_ : Context,
             // for clicking effect of comments icon in the template
             val comment_str : String = mapper.writeValueAsString(data_)
             comment_icon.setOnClickListener{
-                val intent : Intent = Intent(context_, comment_section_group::class.java)
+                val intent  = Intent(context_, comment_section_group::class.java)
                 intent.putExtra("+comments",comment_str)             // passing data of comments
                 intent.putExtra("+sender_name","${item.from}")       // passing the sender name
                 intent.putExtra("+msg_number",item.msg_num)         // sending the pure message nmber of the thread
@@ -262,13 +291,13 @@ class group_chat_adapter ( private val context_ : Context,
         }
 
         fun BIND(dataModel : group_message_model){
-            Log.d("","rrrrrrrrrecived the data model in Bind:${dataModel} & binding layout is:${DISPLAY_STATUS}")
+            Log.d("","bbbbbbbding of data ,edit_rewrite :${dataModel.edit_rewrite}")
             if(DISPLAY_STATUS== MESSAGE_FROM_ME)bind_msg_me(dataModel)
             if(DISPLAY_STATUS== IMAGE_FROM_ME)bind_image_me(dataModel)
             if(DISPLAY_STATUS== TEMPLATE_ME_STORING_REACTION)bind_reaction_me(dataModel)
-//            if(DISPLAY_STATUS== TEMPLATE_ME_VOTE) bind_vote_me(dataModel)
+    //      if(DISPLAY_STATUS== TEMPLATE_ME_VOTE) bind_vote_me(dataModel)
             if(DISPLAY_STATUS== REPLAY_TEMPLATE_ME) bind_replay_me(dataModel)
-//            if(DISPLAY_STATUS== STICKER_FROM_ME) bind_sticker_me(dataModel)
+    //      if(DISPLAY_STATUS== STICKER_FROM_ME) bind_sticker_me(dataModel)
         }
 
 
@@ -277,5 +306,6 @@ class group_chat_adapter ( private val context_ : Context,
             override fun getPosition(): Int = adapterPosition
             override fun getSelectionKey():Long = itemId
         }
+
     }
 }
