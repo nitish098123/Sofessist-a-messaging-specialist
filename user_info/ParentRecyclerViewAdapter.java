@@ -29,16 +29,17 @@ public class ParentRecyclerViewAdapter extends RecyclerView.Adapter<ParentRecycl
         }
     }
 
-    public ParentRecyclerViewAdapter(ArrayList<String> exampleList, Context context) {
+    public ParentRecyclerViewAdapter(ArrayList<String> exampleList, Context context){
         this.parentModelArrayList = exampleList;
         this.cxt = context;
     }
 
     @Override
-    public MyViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+    public MyViewHolder onCreateViewHolder(ViewGroup parent, int viewType){
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.parent_recycle_view, parent, false);
         return new MyViewHolder(view);
     }
+
     @Override
     public int getItemCount() {
         return parentModelArrayList.size();
@@ -54,7 +55,7 @@ public class ParentRecyclerViewAdapter extends RecyclerView.Adapter<ParentRecycl
         holder.category.setText(currentItem);
 
         ArrayList<String> arrayList = new ArrayList<>();
-        if (parentModelArrayList.get(position).equals("PHOTOS")) {
+        if (parentModelArrayList.get(position).equals("PHOTOS")){
             arrayList.add("Photos Name1");
             arrayList.add("Photos Name2");
             arrayList.add("Photos Name3");
@@ -103,7 +104,6 @@ public class ParentRecyclerViewAdapter extends RecyclerView.Adapter<ParentRecycl
 
         ChildRecyclerViewAdapter childRecyclerViewAdapter = new ChildRecyclerViewAdapter(arrayList,holder.childRecyclerview.getContext());
         holder.childRecyclerview.setAdapter(childRecyclerViewAdapter);
-
     }
 
 }

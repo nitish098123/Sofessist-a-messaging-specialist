@@ -4,6 +4,7 @@ class ContactModel {
 
     var name: String? = null
     var number: String? = null
+    var _dp : String? = null
 
     fun setNames(name: String) {
         this.name = name
@@ -19,6 +20,9 @@ class ContactModel {
 
     fun getNames(): String {
         return name.toString()
+    }
+    fun setdp(_dp : String){
+        this._dp = _dp
     }
 
 }
